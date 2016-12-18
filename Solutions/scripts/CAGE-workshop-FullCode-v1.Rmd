@@ -1,0 +1,252 @@
+---
+title: "Introduction into CAGE data"
+output:
+  html_notebook: default
+  df_print: paged
+bibliography: cage-ws.bib
+---
+
+
+
+bla bla bla
+
+
+blaaa
+
+
+# Differential Gene Expression
+CAGE data can also be used to assess expression of the cTSSs. Here, we will use the R-package DESeq2 [@love_moderated_2014]. Originated for RNA-seq data but can also handle similar data from other assaya types (such as CAGE data). The vignette and reference manual can be displayed by running the code below or can be found here [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
+
+```{r, eval = FALSE}
+browseVignettes("DESeq2")
+```
+
+## Summary and goals of this practical
+<br>
+_CAGEr_
+
+* Prepare the right data format from CAGE data for DESEQ2
+* Export the data from CAGEr
+
+_DESeq2_
+
+* Normalise the data
+* Differential expression
+
+_Follow up_
+
+* Gene annotation
+* Gene ontology
+
+
+## 1 Exporting data from a CAGEset object
+### Creating a count table input for DESeq2
+<br>
+We have worked until now with the two samples. However, for a differential expression analysis you will need more samples (replicates and/or more of the same condition). To this end, we'll include two more samples to the mix to follow the more standard work-flow and generate *p*-values. The two additional samples are again from the same R package (ZebrafishDevelopmentalCAGE). The analysis will be on early stage expression vs later stage expression: zf_64cells and zf_512cells vs zf_prim6 and zf_prim20. 
+
+[DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html) accepts matrices of read counts as input and this is exactly what we will export from CAGEr. It expects count data in the form of a matrix of integer values. The value in the i-th row and the j-th column of the matrix tells how many reads can be assigned to each cTSS site i in sample j. The values in the matrix should be un-normalized counts of sequencing reads.
+
+Consensus site (row) | Sample 1 tpm | Sample 2 tpm | Sample 3 tpm | Sample 4 tpm  
+-------------  | ------------- | ------------- | ------------- | -------------
+1              | 0    | 1 | 44 | 60        
+2              | 4 | 10 | 6 | 9       
+
+> <small>!! "The DESeq2 model internally corrects for library size, so transformed or normalized values such as counts scaled by library size should not be used as input" </small>
+
+The code below was run to produce the consensus clusters for the four samples as this would take to long to do on the day. The one important (different step) is shown below in the code. Don't run the code (today).
+
+```{r, eval=FALSE}
+# packages
+require(ZebrafishDevelopmentalCAGE)
+require(CAGEr)
+# load data
+data(ZebrafishSamples)
+as.character(ZebrafishSamples$sample)
+myCAGEset <- importPublicData(source = "ZebrafishDevelopment", dataset = "ZebrafishCAGE", 
+group = "development", sample = as.character(ZebrafishSamples$sample[c(3:4,11:12)] ) )
+
+# CTSS tag count
+ctss <- CTSStagCount(myCAGEset)
+
+#
+# To keep using the raw counts in all downstream steps, the normalizeTagCount function of CAGEr should be used with the method set to "none". Note that normalizeTagCount function has to be applied to CAGEset object before moving to next steps.
+normalizeTagCount(myCAGEset, method = "none")
+#
+
+
+# Clustering of CTSS: low fidelity cTSSs are removed (each cluster with only one cTSS signal < 5).
+clusterCTSS(object = myCAGEset, threshold = 1, thresholdIsTpm = TRUE, 
+            nrPassThreshold = 1, method = "distclu", maxDist = 20, 
+            removeSingletons = TRUE, keepSingletonsAbove = 5)
+
+# cumulative distribution and quantile positions
+cumulativeCTSSdistribution(myCAGEset, clusters = "tagClusters")
+quantilePositions(myCAGEset, clusters = "tagClusters", qLow = 0.1, qUp = 0.9)
+
+# aggregate the clusters across the samples:
+aggregateTagClusters(myCAGEset, tpmThreshold = 5, qLow = 0.1, qUp = 0.9, maxDist = 100)
+save(myCAGEset, file = "../Data/provided/AggregatedTagClus_0109_4Samples.RData")
+```
+
+<br>
+To be able to compare transcriptional activity across these samples, consensus clusters will be used for downstream analysis. This is provided to you in a .RData file. The following steps involve creating the count data table for each consensus cluster, merge it with the coordinates of the consensus, and to write a file with the output in the intermediate directory within the Data directory. 
+
+```{r, message = FALSE}
+# package
+require(CAGEr)
+
+# load the data produced by the code above
+load("../Data/provided/AggregatedTagClus_0109_4Samples.RData")
+
+# create count tpm matrix per consensus cluster for each sample
+count.df <- data.frame(consensusClustersTpm(myCAGEset))
+
+# and the consensus coordinates (same order)
+consensus.info <- consensusClusters(myCAGEset)
+
+# create identifiers to link back
+consensus.info$cons_clus_id <- paste("cid_",1:nrow(consensus.info), sep = "")
+rownames(count.df) <- consensus.info$cons_clus_id
+
+# save the combined info and count tpm as intermediate files 
+# the order is the same so we can easily use cbind
+count.consensus.info <- cbind(consensus.info[,-1], count.df)
+write.table(count.consensus.info, "../Data/intermediate/CountTable_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, sep = "\t", quote = FALSE)
+
+# remove unnecessary files 
+rm(myCAGEset, samples, consensus.info)
+```
+
+<br>
+
+## 2 DESeq2 Data Analysis
+<br>
+First, we will make a DESeqDataSet object from the count table and add the "formula" which is the design of the analysis downstream (a linear model: ~ condition). In this example we are only using the variable (early vs late), however, if you want to add covariates in the model (e.g. batch) these would be extra columns in info.df (see below) and given in the model like : ~ column name covariate + variable. So the variable will be the last in the model. 
+
+```{r}
+# DESeq2 expects a matrix of count table:
+count.matrix <- as.matrix(count.df) # if from previously saved file: as.matrix(count.consensus.info[,7:10])
+head(count.matrix)
+```
+```{r}
+# the condition for the analysis in data.frame:
+samples <- colnames(count.matrix)
+info.df <- data.frame(condition = factor(x = c("early", "early", "late", "late"), levels = c("early","late")), row.names = samples)
+
+```
+
+<br>
+The reason for specifying the levels of the factor is because by default, R will handle factor levels based on alphabetical order. It is good practice to get into, especially in analyses where it matters which level you want to compare against. Thus identifying correctly up- or down-regulated genes in this case.
+<br>
+The first thing to do now is to create a DESeqDataSet object that stores the count matrix and design:
+
+```{r, message = FALSE}
+require(DESeq2)
+dds <- DESeqDataSetFromMatrix(countData = count.matrix, colData = info.df, design = ~ condition)
+```
+<br>
+Let's first do a simple heatmap to check how similar (or dissimilar) the four samples are on a genome-wide transcription level. For this we will use the transformed data as performed by DESeq2. It can do three different types of transformation and here we will use the function
+__rlog__, which stands for regularized log. It transforms the original count data to the log2 scale by fitting a model with a term for each sample and a prior distribution on the coefficients which is estimated from the data (See DESseq vignette for more info). 
+
+```{r, message = FALSE}
+# package
+require(RColorBrewer)
+require(pheatmap)
+# Extracting transformed values:
+rld <- rlog(dds, blind=FALSE)
+# heatmap
+sampleDists <- dist(t(assay(rld)))
+sampleDistMatrix <- as.matrix(sampleDists)
+
+rownames(sampleDistMatrix) <- rld$condition
+colnames(sampleDistMatrix) <- NULL
+
+colors <- colorRampPalette( rev(brewer.pal(9, "Blues")) )(255)
+
+pheatmap(sampleDistMatrix, clustering_distance_rows=sampleDists,
+        clustering_distance_cols=sampleDists,col=colors)
+```
+
+Indeed, the samples are clustering according to the developmental time frame. There are more things you can do and check such as principal component analysis that are also described in the vignette.
+<br>
+<br>
+The standard differential expression analysis steps are wrapped into a single function, __DESeq__. Results tables are generated using the function __results__, which extracts a results table with log2 fold changes, pvalues and adjusted pvalues. The text, condition treated vs untreated, tells you that the estimates are of the logarithmic fold change log2 (treated/untreated). 
+
+```{r, message = FALSE}
+# the analysis
+dds <- DESeq(dds)
+# results
+res <- results(dds)
+```
+
+<br> 
+Next, we want to know what are the lowest adjusted pvalues as these are of interest, which genes they represent, and gene ontology for patterns in the data.
+<br>
+First, let's reorder the results according to lowest p-value:
+```{r}
+resOrdered <- res[order(res$padj),]
+resOrdered
+```
+An easy summary:
+```{r}
+summary(res)
+```
+
+The amount cTSS differentially expressed (padj < 0.05):
+```{r}
+sum(res$padj < 0.05, na.rm=TRUE)
+```
+
+Save the results in a table in the Intermediate directory:
+```{r}
+# First add the cons_clus_id for identification
+resOrdered$cons_clus_id <- resOrdered@rownames
+# Dataframe for downstream
+result <- as.data.frame(resOrdered)
+# save as intermediate file
+write.table(result, "../Data/intermediate/DiffExpression_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+# remove previous files
+rm(res, resOrdered)
+```
+
+<br>
+
+## 3 Gene annotation and Gene ontology
+<br>
+Let's start by having a txdb for our samples. The txdb was created with the code below and is in the provided data directory. 
+
+```{r, eval = FALSE}
+# dan rerio v7
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Load in the the txdb:
+```{r}
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.
+
+```{r, message = FALSE}
+# Promoters (500bp window around refgene TSS)
+promoters = trim(promoters(txdb, upstream=500, downstream=500))
+# 5 kb upstream - 500bp 
+upstream = trim(flank(promoters, 5000))
+# exons
+exons <- exons(txdb)
+# introns
+introns = intronsByTranscript(txdb)
+# genes
+gene = genes(txdb)
+
+
+```
+
+
+
+# References

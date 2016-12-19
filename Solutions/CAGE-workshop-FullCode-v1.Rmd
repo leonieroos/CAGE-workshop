@@ -5,7 +5,7 @@ output:
   df_print: paged
 ---
 
-# CAGE Analysis
+# CAGE Analysis with CAGEr
 
 ## Loading in data from an R-package
 Here, we will do a sample workflow for two samples at different stages in zebrafish development: 512 cell stage (~2,7 hours hpf) and Prim 6 (~24 hpf). These stages have been previously published by Nepal et al (2013) and are available in an R package (by Haberle). Similar packages are available for mice and human data.
@@ -39,68 +39,152 @@ group = "development", sample = samples[c(4,11)]  )
 myCAGEset
 ```
 
-Here, it is good to double check the reference genome and the sample labels. Also this gives us all the slots of the S4 object. So at this stage we have CTSS information as this is already the form of the data of the package. Only the tag count for each TSS for both samples, as the slot of Normalized tpm is empty. As well as the rest of the object. With the following few functions we will "fill in" these slots. And show you how we can retrieve and export of these data.
-<br>
-<br>
+Here, it is good to double check the reference genome and the sample labels. Also this gives us all the slots of the S4 object. So at this stage we have CTSS information as this is already the form of the data of the package. Only the tag count for each TSS for both samples, as the slot of Normalized tpm is empty. As well as the rest of the object. 
+
+## Functions of CAGEr
+With the following few standard CAGEr functions we will "fill in" these slots. And when full, show you how we can retrieve and export of these data.
+
+### Correlation plots
 First, we will look at the data globally between the samples. CAGEr has a function do this for you (shown below) to look at the correlation between the samples and plots the png in the working directory. We fill first source an adjusted version of this function to control the output by using source (Creating a new generic function for 'plotCorrelation'). 
 
-> The function is adjusted to have a "location" argument where the plot should be written in.
+
 
 ```{r}
-source("corrPlotFun.R")
-corr.m <- plotCorrelation(myCAGEset, samples = "all", method = "pearson", location = "../../Data/intermediate/") 
+corr.m <- plotCorrelation(myCAGEset, samples = "all", method = "pearson") 
+corr.m # correlation
 ```
+![correlation](../images/CTSS_raw_values_pairwise_correlation.png)
 
+### Normalization
 Next, we need to normalize our data to adjust for example different library sizes to make them comparable. Here, we'll use the power-law based normalization (see @balwierz).
 
-```{r}
+```{r, message = FALSE}
 # overview library sizes:
 librarySizes(myCAGEset)
 
-# normalisation
+# normalisation first plot to assess alpha
 plotReverseCumulatives(myCAGEset, fitInRange = c(5, 1000), onePlot = TRUE) # plot
-normalizeTagCount(myCAGEset, method = "powerLaw",fitInRange = c(5, 1000), alpha = 1.21, T = 1*10^6)
-
+# insert alpha in normalize function:
+normalizeTagCount(myCAGEset, method = "powerLaw",fitInRange = c(5, 1000), alpha = 1.20, T = 1*10^6)
 ```
 
-```{r}
+Now the CTSS information the normalized tpm is added:
+```{r, eval = FALSE}
+myCAGEset
+```
 
+### Tag clusters of CTSSs
+Let's create tag clusters of CTSSs with the clusterCTSS function of CAGEr. CTSS in close proximity of each other give rise to functionally simialr set of transcripts within the same promoter elements. Tag clusters (TCs) are basically larger transcriptional units that correspond to individual promoters. 
+<br>
+Here, we will use a simple distance measurement that individual CTSS can not be more than 20 bp apart. We also set the threshold at 1 which means that each TSS should have 2 or more tag counts in all the samples prior to clustering. Additionally, to remove low fidelity TSSs: no TC are called with a single TC if the normalized signal is below 5.
+```{r, message = FALSE}
 # Clustering of CTSS :)
 clusterCTSS(object = myCAGEset, threshold = 1, thresholdIsTpm = TRUE, 
             nrPassThreshold = 1, method = "distclu", maxDist = 20, 
             removeSingletons = TRUE, keepSingletonsAbove = 5)
+```
+> Keep in mind that these are determined per sample
 
-# low fidelity TSSs are removed: no cluster with only one TSS unless normalized signal is above 5.
-# each is a set of clusters for each sample seperately.
-# export
-exportCTSStoBedGraph(myCAGEset, values = "normalized",format = "bedGraph", oneFile = TRUE)
+Have a look again at the myCAGEset! The Tag cluster information slot is filled in.
 
-# Promoter width
+### Promoter width
+Another feature we can check is the promoter width. That is, the width of each tag cluster per sample. CAGEr has a function that calculates the TC width by caculating cumulative distribution of tag signal per TC. Subsequently, promoter (TC) width is defined as the distance (in bp) between two quantiles generally set at 0.1 and 0.9 to capture 80% of tags.
+![cumulative promoter](../images/PromoterWidth.png)
+
+```{r}
+# calculate cumlative CTSS distribution:
 cumulativeCTSSdistribution(myCAGEset, clusters = "tagClusters")
+# determine quantile positions:
 quantilePositions(myCAGEset, clusters = "tagClusters", qLow = 0.1, qUp = 0.9)
-
+```
+We can then plot a histogram of the interquantile widths per sample with CAGEr too.
+```{r}
+# we can plot the interquantile width with CAGEr too
 plotInterquantileWidth(myCAGEset, clusters = "tagClusters",tpmThreshold = 3, qLow = 0.1, qUp = 0.9)
+```
+If you look at these two plots, you can see that the 512 cell stage more narrower TCs than prim6 which is what we would expect. 
 
-exportToBed(object = myCAGEset, what = "tagClusters",qLow = 0.1, qUp = 0.9, oneFile = TRUE)
+### Consensus Clusters
+CAGEr vignette: <br>
+_Tag clusters are often sample-specific, thus can be present in one sample but absent in another. In addition, in many cases tag clusters do not coincide perfectly within the same promoter region, or there might be two clusters in one sample and only one larger in the other. To be able to compare genome-wide transcriptional activity across samples and to perform expression profiling, a single set of consensus clusters needs to be created. This is done using aggregate-TagClusters function, which aggregates tag clusters from all samples into a single set of non-overlapping consensus clusters:_
 
-# aggregate the clusters across the samples:
+```{r}
 aggregateTagClusters(myCAGEset, tpmThreshold = 5, qLow = 0.1, qUp = 0.9, maxDist = 100)
-aggregateTagClusters(myCAGEset, tpmThreshold = 5, qLow = 0.1, qUp = 0.9, maxDist = 100)
-#save(myCAGEset, file = "~/Documents/promoter_architecture/TwelveStages_PowNom_AggTagClus_2016_Oct05.RData")
-
-
 ```
 
+
+### Expression - Self organising maps
+As CAGE signals is essentially transcription, levels can be compared between groups. This can be done per CTSS, TC, or consensus clusters. CAGEr offers two methods to cluster gene expression, k-means and self-organising maps (SOM). Both require the number of expression cluster to be known in _a priori_. <br>
+Here we will perform the SOM algorithm at consensus cluster level. We set the threshold to at least 10 tpm (normalized) in at least one sample.
+
+```{r}
+getExpressionProfiles(myCAGEset, what = "consensusClusters", tpmThreshold = 10,
+        nrPassThreshold = 1, method = "som", xDim = 3, yDim = 2)
+
+# in a nice plot:
+plotExpressionProfiles(myCAGEset, what = "consensusClusters")
+```
+
+### Promoter shifting
+Promoter shifting is a method described by Haberle _et al_ in 2014. They've shown that the same promoter can be used differently in different samples. This method has been implemented in CAGEr. Shifting can be detected between two individual samples (or between two groups of samples that are merged per group)
+<br>
+<br>
+_For all promoters a shifting score is calculated based on the difference in the cumulative distribution of CAGE signal along that promoter in the two samples. In addition, a more general assessment of differential TSS usage is obtained by performing Kolmogorov-Smirnov test on the cumulative distributions of CAGE signal, as described below. Thus, prior to shifting score calculation and statistical testing, we have to calculate cumulative distribution along all consensus clusters:_
+
+<img src="../images/shiftingScore.png" width="450">
+
+
+```{r, message = FALSE}
+cumulativeCTSSdistribution(myCAGEset, clusters = "consensusClusters")
+```
+
+Determine the shifting score:
+```{r, message = FALSE}
+scoreShift(myCAGEset, groupX = samples[4], groupY = samples[11], testKS = TRUE, useTpmKS = FALSE)
+```
+
+_Values of shifting score are in range between -Inf and 1. Positive values can be interpreted as the proportion of transcription initiation in the sample with lower expression that is happening "outside" (either upstream or downstream) of the region used for transcription initiation in the other sample. In contrast, negative values indicate no physical separation, i.e. the region used for transcription initiation in the sample with lower expression is completely contained within the region used for transcription initiation in the other sample._ <br> <br>
+_To assess any general change in the TSS usage within the promoter region, a twosample
+Kolmogorov-Smirnov (K-S) test on cumulative sums of CAGE signal along the
+consensus cluster is performed. K-S test is performed to assess whether the two underlying probability distributions differ. To obtain a P-value, sample sizes
+that generated the ECDFs are required, in addition to actual K-S statistics calculated
+from ECDFs. These are derived either from raw tag counts (when useTpmKS = FALSE), or
+from normalized tpm values (when useTpmKS = TRUE). P-values obtained from K-S tests
+are further corrected for multiple testing using Benjamini and Hochenberg (BH) method
+and for each P-value a corresponding false-discovery rate (FDR) is also reported._
+<br>
+<br>
+Here we will set the threshold of shifting score at 0.6 like the original paper as well as setting the FDR at 0.01:
+```{r}
+shifting.promoters <- getShiftingPromoters(myCAGEset, tpmThreshold = 5, scoreThreshold = 0.6, fdrThreshold = 0.01)
+head(shifting.promoters)
+```
+This returns genomic coordinates (of conensusclusters), shifting score, and
+P-value (FDR) of the promoters, as well as the value of CAGE signal and position
+of the dominant TSS in the two compared (groups of) samples.
+
+```{r}
+colnames(shifting.promoters)[7:8] <- paste(samples[c(4,11)], ".pos", sep = "") # to remember later which was group x and group y
+write.table(shifting.promoters, "../Data/intermediate/ShiftedPromoters_sc06_fdr001_2samples.txt", col.names = TRUE,
+            row.names = FALSE, quote = FALSE, sep = "\t")
+```
+
+Save myCAGEset as an intermediate file for if you want to revisit it later on
+
+```{r}
+save(myCAGEset, file ="../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
+```
+
+# Export browser tracks from CAGEr
+
+# Export tables 
+
+# Data handlin in R
 
 ## Annotation of transcripts
 Where do the cage signal 
 
-
-bla bla bla
-[@haberle_cager_2015]
-
-blaaa
-
+# Dinucleotide plots
 
 # Differential Gene Expression
 CAGE data can also be used to assess expression of the cTSSs. Here, we will use the R-package DESeq2 [@love_moderated_2014]. Originated for RNA-seq data but can also handle similar data from other assaya types (such as CAGE data). The vignette and reference manual can be displayed by running the code below or can be found here [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
@@ -173,7 +257,7 @@ quantilePositions(myCAGEset, clusters = "tagClusters", qLow = 0.1, qUp = 0.9)
 
 # aggregate the clusters across the samples:
 aggregateTagClusters(myCAGEset, tpmThreshold = 5, qLow = 0.1, qUp = 0.9, maxDist = 100)
-save(myCAGEset, file = "../../Data/provided/AggregatedTagClus_0109_4Samples.RData")
+save(myCAGEset, file = "../Data/provided/AggregatedTagClus_0109_4Samples.RData")
 ```
 
 <br>
@@ -184,7 +268,7 @@ To be able to compare transcriptional activity across these samples, consensus c
 require(CAGEr)
 
 # load the data produced by the code above
-load("../../Data/provided/AggregatedTagClus_0109_4Samples.RData")
+load("../Data/provided/AggregatedTagClus_0109_4Samples.RData")
 
 # create count tpm matrix per consensus cluster for each sample
 count.df <- data.frame(consensusClustersTpm(myCAGEset))
@@ -199,7 +283,7 @@ rownames(count.df) <- consensus.info$cons_clus_id
 # save the combined info and count tpm as intermediate files 
 # the order is the same so we can easily use cbind
 count.consensus.info <- cbind(consensus.info[,-1], count.df)
-write.table(count.consensus.info, "../../Data/intermediate/CountTable_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, sep = "\t", quote = FALSE)
+write.table(count.consensus.info, "../Data/intermediate/CountTable_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, sep = "\t", quote = FALSE)
 
 # remove unnecessary files 
 rm(myCAGEset, samples, consensus.info)
@@ -295,7 +379,7 @@ Save the results in a table in the Intermediate directory:
 ```{r}
 # Dataframe for downstream
 # save as intermediate file
-write.table(res.info, "../../Data/intermediate/DiffExpression_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
+write.table(res.info, "../Data/intermediate/DiffExpression_Consensus_4Samples.txt", col.names = TRUE, row.names = FALSE, quote = FALSE, sep = "\t")
 # remove previous files
 rm(res)
 ```
@@ -311,14 +395,14 @@ Let's start by having a txdb agaub for our samples. The txdb was created with th
 require(GenomicFeatures)
 require(AnnotationDbi)
 txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
-saveDb(txdb, file = "../../Data/provided/txdb_DanRer7.sqlite")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
 ```
 
 Load in the the txdb:
 ```{r}
 require(GenomicFeatures)
 require(AnnotationDbi)
-txdb <- loadDb("../../Data/provided/txdb_DanRer7.sqlite")
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
 ```
 
 Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.

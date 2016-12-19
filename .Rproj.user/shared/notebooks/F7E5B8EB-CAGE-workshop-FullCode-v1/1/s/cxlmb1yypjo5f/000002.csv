@@ -1,0 +1,8 @@
+"0","require(GenomicFeatures)
+"
+"2","Loading required package: GenomicFeatures
+"
+"2","Loading required package: AnnotationDbi
+"
+"0","txdb <- makeTxDbFromUCSC(""danRer7"", ""ensGene"")"
+"2","Download the ensGene table ... "

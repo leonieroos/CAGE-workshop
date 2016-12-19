@@ -1,0 +1,8 @@
+"0","# First add the cons_clus_id for identification"
+"0","resOrdered$cons_clus_id <- resOrdered@rownames"
+"0","# Dataframe for downstream"
+"0","result <- as.data.frame(resOrdered)"
+"0","# save as intermediate file"
+"0","write.table(result, ""Data/intermediate_data/DiffExpression_Consensus_4Samples.txt"", col.names = TRUE, row.names = FALSE, quote = FALSE, sep = ""\t"")"
+"0","# remove previous files"
+"0","rm(res, resOrdered)"

@@ -1,0 +1,7 @@
+"0","require(GenomicFeatures)"
+"0","require(AnnotationDbi)"
+"0","txdb <- loadDb(""..Data/provided_data/txdb_DanRer7.sqlite"")"
+"2","Error in rsqlite_connect(dbname, loadable.extensions, flags, vfs) : 
+  Could not connect to database:
+unable to open database file
+"

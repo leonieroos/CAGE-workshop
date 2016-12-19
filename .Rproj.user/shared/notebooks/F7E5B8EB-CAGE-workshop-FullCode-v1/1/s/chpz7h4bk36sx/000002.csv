@@ -1,0 +1,27 @@
+"0","summary(res)"
+"1","
+"
+"1","out of"
+"1"," "
+"1","56750"
+"1"," "
+"1","with nonzero total read count
+"
+"1","adjusted p-value < 0.1
+"
+"1","LFC > 0 (up)     : 11574, 20% 
+"
+"1","LFC < 0 (down)   : 5961, 11% 
+"
+"1","outliers [1]     : 0, 0% 
+"
+"1","low counts [2]   : 23097, 41% 
+"
+"1","(mean count < 4)
+"
+"1","[1] see 'cooksCutoff' argument of ?results
+"
+"1","[2] see 'independentFiltering' argument of ?results
+"
+"1","
+"

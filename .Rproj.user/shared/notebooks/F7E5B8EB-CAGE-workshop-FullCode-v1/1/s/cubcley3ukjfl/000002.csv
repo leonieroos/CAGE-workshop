@@ -1,0 +1,3 @@
+"0","# the condition for the analysis in data.frame:"
+"0","samples <- colnames(count.matrix)"
+"0","info.df <- data.frame(condition = factor(x = c(""early"", ""early"", ""late"", ""late""), levels = c(""early"",""late"")), row.names = samples)"

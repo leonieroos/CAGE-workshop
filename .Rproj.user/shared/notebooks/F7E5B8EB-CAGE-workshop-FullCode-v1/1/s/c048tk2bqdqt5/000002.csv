@@ -1,0 +1,4 @@
+"0","# the analysis"
+"0","dds <- DESeq(dds)"
+"0","# results"
+"0","res <- results(dds)"

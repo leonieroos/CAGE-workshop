@@ -1,0 +1,27 @@
+---
+title: "CAGE *.fastq file* chromosome 11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Our original *.fastq* file containes all reads mappable to the  *Danio rerio* genome from the 30 percent epiboly stage.   
+However, as the file with all the reads is huge and we only need the reads mappable to chromosome 11, we prepared a subset sample file.
+To do that, we used the .sam file created by mapping all the reads to the genome (danRer10), and extracted the sequence read identifiers of the reads that mapped to chr11. Using these identifiers, we extracted the corresponding reads from the *.fastq file *to a reduced *chr11.fastq* file.
+
+```{bash, eval=FALSE, include=TRUE}
+cat 30epi_1_CTT.sam | grep "chr11" | awk '{print $1}' > identifiers.txt
+```
+
+What did we do here? We opened the *.sam* file using *samtools view*, piped the output to *grep* and selected the lines that contained "chr11", which means that this read was mapped to chromosome 11.  
+The lines that contained "chr11" are further piped into *awk* which is used to print the 1st column (read identifiers) into a text file *identifiers.txt*.  
+
+Next, we used these identifiers to select the reads from *.fastq* file and produced a subset *.fastq* file with reads mappable only to chromosome 11.
+
+```{bash, eval=FALSE, include=TRUE}
+seqtk subseq 30epi_1_CTT_L008_R1_001.fastq.gz identifiers.txt | gzip > 30epi_chr11.fastq.gz
+```
+
+So here we used the *identifiers.txt* file to subset our *fastq.gz* file, compressed the output using gzip, and wrote the compressed output to a *.fastq.gz* file.

@@ -1,0 +1,79 @@
+---
+title: "Mapping to *Danio rerio* chromosome 11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Lets first check the quality
+After running *fastqc* on our *30epi_chr11.fastq.gz* file we saw that our reads contain sequences which are repeated in every read (high kmer content in the beginning of each sequence), GC content is skewed and all sequences start with G. Why is that? Check the beginning of each seqeuence in the *.fastq.gz* file.
+
+
+ANSWER: How do we check the raw sequences?  
+```{bash, eval=FALSE, include=TRUE}
+
+```
+
+We see EcoP15 recognition site on the 5'end, and the 3'-Illumina adaptor on the 3'-end of the read. Our reads are 47bp long, and the __TAGGING CAGE__ version of the protocol produces reads that start with the restriction site (6nt) + 27nt read + 14nt adaptor = 47nt in total. How come we have 47nt?
+
+This means, that we need to trimm the 6nt from the 5'-end and 14nt from the 3'-end to produce a mappable read.  
+We will use a Python tool *cutadapt* to do this.  
+Lets first see how to run it:
+
+```{bash, eval=FALSE, include=TRUE}
+cutadapt
+```
+
+We can either specify the exact sequence, or specify the number of nucleotides to remove.
+
+```{bash, eval=FALSE, include=TRUE}
+cutadapt -u +6 -u -14 -o 30epi_chr11_trimmed.fastq.gz 30epi_chr11.fastq.gz
+```
+
+Or we can even specify within *bowtie2* to do the trimming prior to mapping (see later..)
+
+
+There are many mapping algorithms, each with its advantages and disadvantages.  
+Commonly used are *bwa*, *bowtie*, *bowtie2*, *tophat*, *tophat2* or *star*.  
+Here, we will use *bowtie2*, as it is known to be a memory-efficient tool, very good at aligning reads about 50 up to 100 bp long to relatively long genomes. It supports single-end, paired-end, gapped and local alignment modes.  
+More about this aligner can be found on: <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>.
+
+First we need to build the index for our reference genome/chromosome 11. Why?
+Lets first see how to use the *bowtie2-build* tool:
+
+```{bash, eval=FALSE, include=TRUE}
+bowtie2-build
+```
+
+We can see that the syntax for using *bowtie2-build* is to specify the genome.fasta file and the output basename.
+
+```{bash, eval=FALSE, include=TRUE}
+bowtie2-build danRer10chr11.fa danRer10chr11
+```
+
+Lets see what we created in our folder:
+
+```{bash, eval=FALSE, include=TRUE}
+ls
+```
+
+We can see that 6 files with our specified basename *danRer10chr11[1-4].bt2* appeared.  
+Now we can map our reads from chromosome 11 (file.fastq) to the indexed reference genome (chromosome 11).
+
+Lets first check how to use *bowtie2*: 
+```{bash, eval=FALSE, include=TRUE}
+bowtie2
+```
+
+To start the mapping:
+```{bash, eval=FALSE, include=TRUE}
+bowtie2 -x danRer10chr11 -U 30epi_chr11_trimmed.fastq.gz -S 30epi_chr11_trimmed.sam
+```
+
+Alternatively, we can set trimming within *bowtie2* and skip trimming using *cutadapt*. To map and trimm (remove restriction site and the 3'-adaptor sequence):
+```{bash, eval=FALSE, include=TRUE}
+bowtie2 -5 6 -3 14 -x danRer10chr11 -U 30epi_chr11.fastq.gz -S 30epi_chr11.sam
+```
+

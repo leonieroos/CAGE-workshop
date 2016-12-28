@@ -91,6 +91,53 @@ install.packages("RColorBrewer", repos="http://cran.rstudio.com/")
 install.packages("pheatmap", repos="http://cran.rstudio.com/")
 ```
   
-  
 ### Software
 The following software should be installed from the terminal/command line:
+
+First install homebrew - the package manager for macOS by pasting the following at the Terminal prompt:  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+
+For mapping and read processing, we will install several programs using Homebrew as the package manager by typing the following at the Terminal prompt:  
+  
+-  java (necessary for fastqc)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew cask install java
+```
+
+-  fastqc (for read quality control)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install fastqc
+```
+  
+-  bowtie2 (for mapping)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install bowtie2
+```
+  
+-  samtools (for manipulating .bam and .sam files)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install samtools
+```
+
+-  bedtools (for manipulating .bam, .bed etc. types of files)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install bedtools
+```
+  
+-  seqtk (if you want to subset .fastq file reads as described in preparing reads for this course)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install seqtk
+```
+Homebrew has an excellent science selection and all the programs available for installation can be found at:  
+<https://github.com/Homebrew/homebrew-science>  
+To install a program use the following syntax:  
+brew install *program_name without .rb extension*  
+  
+-  cutadapt (for trimming reads in .fastq format)
+    To install software for trimming reads in .fastq format, we will use Python's package manager PIP by typing the following at the Terminal prompt:  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+pip install cutadapt
+```
+

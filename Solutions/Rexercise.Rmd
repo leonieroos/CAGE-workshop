@@ -1,0 +1,224 @@
+---
+title: "R Notebook"
+output:
+  html_document: default
+  df_print: paged
+  html_notebook: default
+---
+
+Before learning to manipulate CAGE data, we will repeat some very important data structures and packages necessary for manipulation of genomic data.  
+  
+###IRanges
+First we will repeat / do some exercise using IRanges: 
+```{r}
+library(IRanges)
+rng <- IRanges(start=1, end=15)
+```
+Important thing to remember is that IRanges (and its dependancy GenomicRanges are 1-based, and use closed intervals, as most R packages).  
+
+IRanges can also be created using a start and width position:  
+```{r}
+rng <- IRanges(start=5, width=10)
+```
+
+It is also possible to create an IRanges object using a vector of arguments to specify start, end or width elements:  
+```{r}
+rng <- IRanges(start=c(2,3,7,15), end=c(15,25, 46, 78))
+rng
+```
+
+In addition, like other objects, ranges can be named:  
+```{r}
+names(rng) <- letters[1:4]
+rng
+```
+
+Keep in mind that this type of object is not a dataframe (test its class).  
+Object's class determins its behaviour in R.  
+```{r}
+class(rng)
+```
+
+We can also use accessor functions to access the start, end and width positions.  
+```{r}
+start(rng)
+end(rng)
+width(rng)
+```
+
+And subsetting works equally as for any other R object. Lets first create an IRange object wiith several ranges 
+```{r}
+rng <- IRanges(start=c(1,5,10), width=c(3,5,9))
+rng
+rng[2:3]
+
+index <- start(rng) <=5
+rng[index]
+```
+
+The advantage of IRanges is the ability to transform our data. What is the consequence of addition or substraction?  
+```{r}
+rng + 1
+rng - 1
+```
+We can see that the added or substracted values have been applied to both the start and the end.  
+
+There are also special functions such as *flank*, lets see what that does:  
+```{r}
+rng
+flank(rng, width = 2)
+```
+By default, *flank* returns the regions that are on the side of each range in the IRanges object with the specified width. By default, it operates to create a range with 'width' position upstream of each start position. To *flank* the regions downstream, set *start = false*:  
+```{r}
+flank(rng, width = 2, start = FALSE)
+```
+
+Next important function is *reduce*. This allows us to transform overlapping ranges into a set of non-overlapping ranges that cover the same positions. Lets first create some overlapping ranges:  
+```{r}
+rng <- IRanges(start = c(45, 18, 27, 14), width = rep(5,4))
+rng
+reduce(rng)
+```
+The function *reduce* is useful when we have a set of genomic regions and we are interested only in which regions are "covered", and not in the exact structure of the regions.  
+
+A similar function is *gap*, which returns the regions that are not covered.  
+```{r}
+gaps(rng)
+```
+Notice that the *gaps* function returns only the gaps between the ranges, and not from beginning of the sequence to the first range. This is because we have not specified the beginning or the end of the sequence, if we wish to include those gaps also, we have to specify it:   
+```{r}
+gaps(rng, start = 1, end = 100)
+```
+
+Further useful functions are *set operations*. IRanges objects can be percieved as set of integers (4-7 is 4,5,6,7) and therefore difference (setdiff()), intersection (intersect()) and union (union()) are useful operations.  
+Note that in some cases, the order of IRanges objects matters.  
+
+```{r}
+rng1 <- IRanges(start = 3, end = 15)
+rng2 <- IRanges(start = 13, end = 19)
+  
+union(rng1, rng2)
+intersect(rng1, rng2)
+setdiff(rng1, rng2)
+setdiff(rng2, rng1)
+```
+
+Lastly, one of the most important functions is *findOverlaps()*. The basic task of this function is to find overlaps between two sets of IRanges objects. Lets see how it works.  
+```{r}
+query <- IRanges(start = c(1, 27, 18, 12, 22, 8), end = c(15, 29, 18, 15, 23, 8), names = letters[1:6])
+query
+subject <- IRanges(start = c(1,18,9), end = c(4, 28, 15), names = letters[15:17])
+subject
+
+hits <- findOverlaps(query, subject)
+hits
+```
+
+Hits object represents a mapping between query and subject - which query ranges overlap wich subject range/ranges. First column represents the index of the query object, while the second the index of the subject. This can be used to subset ovelapping ranges:  
+```{r}
+query[queryHits(hits)]
+subject[subjectHits(hits)]
+```
+  
+Similarly, we can also use *subsetByOverlaps*:  
+```{r}
+subsetByOverlaps(query, subject)
+```
+
+What is the difference between using *subsetByOverlaps* and the following:  
+```{r}
+query[queryHits(hits)]
+  
+query[unique(queryHits(hits))]
+```
+
+
+From the output we can see that *findOverlaps* by default works to find any overlaping ranges, even if just a part overlaps. We can also specify that a query is overlapping only if it completely falls within the subject range.  
+  
+```{r}
+hits_within <- findOverlaps(query, subject, type = "within")
+hits_within
+query[queryHits(hits_within)]
+subject[subjectHits(hits_within)]
+```
+
+Last set of functions we will examine is to find nearest, preceding or following ranges and calculate distances.  
+```{r}
+query <- IRanges(start = 2, end = 7, name = "query")
+query
+subject
+nearest(query, subject)
+query[nearest(query, subject)]
+precede(query, subject)
+follow(query, subject)
+```
+Nearest returns the nearest subject range even if its overlapping the query range. Precede and follow find ranges that query precedes or follows (remember these functions are relative to the query).  
+To calculate some distances between ranges, we can use the following:  
+```{r}
+query
+subject
+distanceToNearest(query, subject)
+distance(query, subject)
+```
+We can see that *distanceToNearest* works similarly as findOverlaps - it returns a mapping hits object and an additional column containing calculated distances.  
+Distances returns pairwise calculated distances between each query and subject ranges.
+
+###GRanges
+GRanges builds on IRanges, with additional functionalities such as storing sequence name (chromosome names), strand name (+ or -) and any other information in the form of metadata.  
+Lets see how to create a GRange object.  
+```{r}
+library(GenomicRanges)
+gr <- GRanges(seqname = c("chr1", "chr1", "chr2"), 
+              ranges = IRanges(start = 10:12, width = 10),
+              strand = c("+", "-", "+"),
+              gc_perc = round(runif(3), 2))
+gr
+```
+  
+Similar to IRanges, we can use accessor functions (all the one that worked on IRanges work on GRanges objects):
+```{r}
+start(gr)
+end(gr)
+width(gr)
+
+seqnames(gr)
+ranges(gr)
+strand(gr)
+```
+
+We can also see the number of ranges in our GRanges object and name each range:  
+```{r}
+length(gr)
+names(gr) <- letters[1:3]
+gr
+```
+
+To access metadata use:  
+```{r}
+mcols(gr)
+```
+  
+A very usefull GRanges structure is a GRangesList that can be used to group the data together - this will be frequently used with genomic data.  
+
+```{r}
+gr1 <- GRanges(seqname = c("chr1", "chr2", "chr2"), 
+               ranges = IRanges(start = 2:4, width = 10),
+               strand = c("+", "+", "-"))
+gr1
+gr2 <- GRanges(seqname = c("chr2", "chr2", "chr3", "chr1"), 
+               ranges = IRanges(start = 6:9, width = 12),
+               strand = c("+", "+", "-","+"))
+gr2
+grl <- GRangesList(gr1, gr2)
+grl
+```
+  
+GRangesList behaves as a regular R list. Observe that we can do the following:  
+```{r}
+length(grl)
+unlist(grl)
+grl[1]
+grl[[1]]
+```
+
+And to work with lists as data structures, we will often need to use *lapply* or *sapply*.  

@@ -7,13 +7,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ### Quality control and processing of the raw sequence file
-Lets first check the quality
-After running *fastqc* on our *30epi_chr11.fastq.gz* file we saw that our reads contain sequences which are repeated in every read (high kmer content in the beginning of each sequence), GC content is skewed and all sequences start with G. Why is that? Check the beginning of each seqeuence in the *.fastq.gz* file.
+Lets first check the quality of our data. We will first run *fastqc* on the *30epi_chr11.fastq.gz* file (make sure it is installed).
+```{bash, eval = FALSE, include = TRUE}
+fastqc 30epi_chr11.fastq.gz
+```
 
-
+After running *fastqc* on our *30epi_chr11.fastq.gz* file we see that our reads contain sequences that are repeated in every read (high kmer content in the beginning of each sequence), GC content is skewed and all sequences start with G. Why is that? Check the beginning of each seqeuence in the *.fastq.gz* file.
+  
+  
 ANSWER: How do we check the raw sequences?  
 ```{bash, eval=FALSE, include=TRUE}
-
+gzcat 30epi_chr11.fastq.gz | head
 ```
 
 We see EcoP15 recognition site on the 5'end, and the 3'-Illumina adaptor on the 3'-end of the read. Our reads are 47bp long, and the __TAGGING CAGE__ version of the protocol produces reads that start with the restriction site (6nt) + 27nt read + 14nt adaptor = 47nt in total. How come we have 47nt?
@@ -34,7 +38,11 @@ cutadapt -u +6 -u -14 -o 30epi_chr11_trimmed.fastq.gz 30epi_chr11.fastq.gz
 
 Or we can even specify within *bowtie2* to do the trimming prior to mapping (see later..)
 
-  
+Lets see how our reads look now:
+```{bash, eval = FALSE, include=TRUE}
+gzcat 30epi_chr11_trimmed.fastq.gz | head
+```
+
 ### Mapping using *bowtie2* 
 There are many mapping algorithms, each with its advantages and disadvantages.  
 Commonly used are *bwa*, *bowtie*, *bowtie2*, *tophat*, *tophat2* or *star*.  
@@ -61,7 +69,7 @@ ls
 ```
 
 We can see that 6 files with our specified basename *danRer10chr11[1-4].bt2* appeared.  
-Now we can map our reads from chromosome 11 (file.fastq) to the indexed reference genome (chromosome 11).
+Now we can map our reads from chromosome 11 (30epi_chr11_trimmed.fastq.gz) to the indexed reference genome (chromosome 11).
 
 Lets first check how to use *bowtie2*: 
 ```{bash, eval=FALSE, include=TRUE}

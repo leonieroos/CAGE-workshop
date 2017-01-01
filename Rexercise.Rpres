@@ -242,17 +242,21 @@ Genomic Ranges - GRanges
 - very useful way to create a GRanges object is from a dataframe
 - first we will read data from a file *ranges.txt* into a dataframe and then create a GRanges object
 ```{r}
-rng <- read.table(file = "ranges.txt", sep = "\t", header = TRUE)
+rng <- read.table(file = "Solutions/ranges.txt", sep = "\t", header = TRUE)
 rng
-
-# we can specify everything manually
+```
+- we can specify everything manually
+```{r}
 rng.gr <- GRanges(seqnames = rng$chr,
                   ranges = IRanges(start = rng$start, end = rng$end),
                   strand = rng$strand,
                   gc_perc = rng$gc_perc)
 rng.gr
-
-# there is also an option to convert the dataframe into a GRanges object directly using makeGRangesFromDataFrame
+```
+Genomic Ranges - GRanges
+========================================================
+- there is also an option to convert the dataframe into a GRanges object directly using makeGRangesFromDataFrame
+```{r}
 rng.gr <- makeGRangesFromDataFrame(rng, keep.extra.columns = TRUE)
 rng.gr
 ```
@@ -266,20 +270,24 @@ end(rng.gr)
 width(rng.gr)
 
 seqnames(rng.gr)
+```
+
+Genomic Ranges - GRanges
+========================================================
+```{r}
 ranges(rng.gr)
 strand(rng.gr)
 ```
 
+Genomic Ranges - GRanges
+========================================================
 - we can also see the number of ranges in our GRanges object and name each range:  
 ```{r}
 length(rng.gr)
 names(rng.gr) <- letters[1:6]
 rng.gr
 ```
-
-Genomic Ranges - GRanges
-========================================================
-To access metadata use:  
+- to access metadata use:  
 ```{r}
 mcols(rng.gr)
 ```
@@ -306,16 +314,25 @@ gr2 <- GRanges(seqname = c("chr2", "chr2", "chr3", "chr1"),
                ranges = IRanges(start = 6:9, width = 12),
                strand = c("+", "+", "-","+"))
 gr2
+```
+Genomic Ranges - GRangesList
+========================================================
+```{r}
 grl <- GRangesList(gr1, gr2)
 grl
 ```
 
 Genomic Ranges - GRangesList
 ========================================================
-- GRangesList behaves as a regular R list. Observe that we can do the following:  
+- GRangesList behaves as a regular R list
 ```{r}
 length(grl)
 unlist(grl)
+```
+
+Genomic Ranges - GRangesList
+========================================================
+```{r}
 grl[1]
 grl[[1]]
 ```
@@ -330,7 +347,11 @@ grl
 
 # extract start positions for each GRangesList element using lapply
 lapply(grl, function(x) start(x))
+```
 
+Genomic Ranges - GRangesList
+========================================================
+```{r}
 # extract width of each element
 lapply(grl, function(x) width(x))
 ```
@@ -343,16 +364,16 @@ sapply(grl, length)
 
 Genomic Ranges - Exercise
 ========================================================
- 1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.
-   2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).
-   3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).
+  1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.
+  2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).
+  3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).
 
 Genomic Ranges - Solutions
 ========================================================
-      1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.  
+  1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.  
   
 ```{r}
-genes.df <- read.table(file.choose(), header = TRUE) # read the data from a file into a dataframe
+genes.df <- read.table("Solutions/danRer7genes.txt", header = TRUE) # read the data from a file into a dataframe
 head(genes.df)
 genes.gr <- makeGRangesFromDataFrame(genes.df, keep.extra.columns = TRUE) # create a GRanges object from a dataframe
 head(genes.gr)
@@ -360,7 +381,7 @@ head(genes.gr)
 
 Genomic Ranges - Solutions
 ========================================================
- 2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).  
+  2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).  
  
 ```{r}
 genes.grl <- split(genes.gr, seqnames(genes.gr)) 
@@ -368,7 +389,7 @@ genes.grl <- split(genes.gr, seqnames(genes.gr))
 
 Genomic Ranges - Solutions
 ========================================================
-   3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).  
+  3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).  
 ```{r}
 promoters.gr <- promoters(genes.grl[["chr11"]], upstream = 2000, downstream = 500, strand = TRUE)
 head(promoter.gr)

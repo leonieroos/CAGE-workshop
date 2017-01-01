@@ -165,7 +165,7 @@ Distances returns pairwise calculated distances between each query and subject r
 
 ###GenomicRanges - GRanges
 GRanges is build on IRanges, with additional functionalities such as storing sequence name (chromosome names), strand name (+ or -) and any other information in the form of metadata.  
-Lets see how to create a GRange object.  
+Lets see how to create a GRanges object.  
 ```{r}
 library(GenomicRanges)
 gr <- GRanges(seqname = c("chr1", "chr1", "chr2"), 

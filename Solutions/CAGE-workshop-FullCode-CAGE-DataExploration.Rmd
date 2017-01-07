@@ -1,0 +1,82 @@
+---
+title: "3. Exploring CAGE Data within R"
+output:
+  html_notebook: default
+  html_document: default
+  df_print: paged
+  number_sections: yes
+  toc: yes
+---
+<br>
+CAGE data can also be used to assess expression of the cTSSs. Here, we will use the R-package DESeq2 [@love_moderated_2014]. Originated for RNA-seq data but can also handle similar data from other assaya types (such as CAGE data). The vignette and reference manual can be displayed by running the code below or can be found here: [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
+<br> <br>
+Up to now, we have worked with just two samples. However, for a differential expression analysis you will need more samples such as replicates and/or more of the same group. To this end, we'll include two more samples to the mix as to follow the more standard work-flow and generate *p*-values. The two additional samples are from the same R package _ZebrafishDevelopmentalCAGE_. 
+<br> <br>
+The analysis will be on determing differentially expressed promoters in early stage expression vs later stage expression:
+
+* __Early stages__:  zf_64cells & zf_512cells 
+* __Late stages__:   zf_prim6 & zf_prim20
+
+
+```{r, eval = FALSE}
+browseVignettes("DESeq2")
+```
+
+# Export tables 
+<br> <br>
+We will save this dataframe seperately for later today. I suggest to rename the column names with the samples that are used here to remember later which was group x and group y:
+
+
+
+
+```{r}
+colnames(shifting.promoters)[7:8] <- paste(samples[c(4,11)], ".pos", sep = "") 
+write.table(shifting.promoters,
+            "../Data/intermediate/ShiftedPromoters_sc06_fdr001_2samples.txt", 
+            col.names = TRUE,
+            row.names = FALSE, 
+            quote = FALSE, 
+            sep = "\t")
+```
+## Summary and goals of this practical
+<br>
+_CAGEr_
+
+* Prepare the right data format from CAGE data for DESEQ2
+* Export the data from CAGEr
+
+_DESeq2_
+
+* Normalise the data
+* Differential expression
+
+_Follow up_
+
+* Gene annotation
+* Gene ontology
+
+
+
+## 3.1 Gene annotation and Gene ontology
+<br>
+Let's start by having a TxDb for our samples. The TxDb was created with the code below and _can be found in the provided data directory_. 
+
+```{r, eval = FALSE}
+# dan rerio v7
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Load in the the txdb:
+```{r}
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.
+
+## 3.2 Heatmaps
+

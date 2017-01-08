@@ -8,7 +8,7 @@ output:
   toc: yes
 ---
 <br>
-In this practical we will explore the data of our two samples within the R environment outside the _CAGEr_ functions we have performed earlier. Normally, some of these you would do during your analysis pipeline to check the data throughout. To this end, we show how to extract CAGE signals from the _CAGEr_ package that are convenient for downstream analyses. We will look at different promoter types, annotation of tag clusters (TCs), visualization with heatmaps, and gene ontology (GO).
+In this practical we will explore the data of our two samples within the R environment outside the _CAGEr_ functions we have performed earlier. Normally, some of these you would do during your analysis pipeline to check the data throughout. To this end, we show how to extract CAGE signals from the _CAGEr_ package that are convenient for downstream analyses. We will look at different promoter types, annotation of tag clusters (TCs), and visualization with heatmaps.
 
 
 ## Summary and goals of this practical
@@ -20,13 +20,12 @@ _CAGEr_
 _General R environment_
 
 * Annotation 
-* Promoter types and peaks
-* Gene ontology
+* Promoter types
 
 _Heatmaps_ (R package)
 
 * Dinucleotide heatmaps
-* Motif (pwm) hetampas
+* Motif (pwm) heatmaps
 
 ## Data used this tutorial
 
@@ -35,30 +34,112 @@ Let's load in our CAGEset made of two samples:
 require(CAGEr)
 load("../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
 ```
-
-
-# Use _CAGEr_ to extract data
-_CAGEr_ has multiple functions to easily extract information; from CTSSs to consensus clusters. We'll go quickly through the ones we're going to be using here:
-
-* 
-
-# 3.1 Annotation of genomic features
-The majority of CAGE data is expected to fall within known promoters and near known TSSs due to the nature of the method. Let's see if this is true for our two samples. For this, we need not only the TCs from each sample, but also the known annotations of the zebrafish genome. We will do this in stages. Let's first export the TCs and normalized tag per million for one sample and make into a GRanges oject.
 <br> <br>
 Which samples were in our object again? Use `sampleLabels(myCAGEset)` and assign just the sample labels to `samples`.
 ```{r}
 samples <- unname(sampleLabels(myCAGEset))
 samples
 ```
-We will use `tagClusters()` to extract for the TCs and include inter quantile widths that we previously calculated. Run the code below and see what that function extracts for zf_512cells. Note, this function only works per sample and needs the sample label.
+
+# 3.1 Use _CAGEr_ to extract data from CAGEset object
+_CAGEr_ has multiple functions to easily extract information; from CTSSs to consensus clusters. We'll go quickly through these below.
+
+## 3.1.1 CTSS - CAGE tag count for TSSs
+<br>
+
+#### Raw CTSS signals
+The number of CAGE tags supporting each TSS can be extracted with `CTSStagCount()` and result in a dataframe of all samples in the object. Use this function on our cageset. What is the range of count in zf_prim6? How many CTSSs have been detected in total?
+```{r}
+ctss <- CTSStagCount(myCAGEset)
+head(ctss)
+range(ctss$zf_prim6)
+nrow(ctss) # total unique CTSSs
+```
+<br>
+
+#### Normalized CTSS signals
+`CTSSnormalizedTpm()` returns as the name implies the normalized CAGE signal for all detected TSSs of our cageset.
 
 ```{r}
-i = samples[1]
-tc <- tagClusters(myCAGEset, sample = i, returnInterquantileWidth = TRUE, qLow = 0.1, qUp = 0.9)
-head(tc)
+ctss.n <- CTSSnormalizedTpm(myCAGEset)
+head(ctss.n)
+nrow(ctss.n)
 ```
 
-This we will make into a GRanges using the interquantile width as start and end. In addition we add the extra information.
+
+## 3.1.2 TCs - CAGE tag clusters 
+<br>
+
+#### Per single sample
+`tagClusters()` can extract our previously produced TCs for one CAGE experiment from a CAGEset object. Look at `?tagClusters` in the viewer. You can see that we can also extract the interquantile widths at the same time so let's do that. How many TCs are there in zf_512cells?
+
+```{r}
+i = samples[1] # zf_512cells
+tc <- tagClusters(myCAGEset, 
+                  sample = i, 
+                  returnInterquantileWidth = TRUE,
+                  qLow = 0.1, 
+                  qUp = 0.9)
+head(tc)
+nrow(tc)
+```
+<br>
+
+#### For all samples in an object
+Let's make things easier downstream and avoid mistakes repeating code. We can easily make a list that contains per sample their TCs:
+
+```{r}
+tc.list <- list()  
+for ( i in samples ) {
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+
+  tc.list[[i]] <- tc
+}
+```
+
+Now, the samples will each have a dataframe in this list that is labeled according to their sample label; `str(tc.list)`.
+
+## 3.1.3 Consensus clusters
+_CAGEr_ has two functions extracting information of consensus clusters. One for the information of consensus clusters and one for the matrix with normalized CAGE tag values for consensus clusters across all samples. We'll start by extracting the information first with `consensusClusters()`.
+
+
+```{r}
+cc <- consensusClusters(myCAGEset, 
+                        sample = NULL ) # gives the sum of tpm of all samples in object
+```
+
+Next, we'll use `consensusClustersTpm()` to extract the sum of tpm per sample in those consensus clusters 
+```{r}
+cc.tpm <- consensusClustersTpm(myCAGEset)
+```
+
+We can combine the two to keep the coordinates of the consensusclusters and tpm together. Both are in the same order!
+
+```{r}
+cc.total <- cbind(cc[,-1], cc.tpm)
+head(cc.total)
+```
+
+
+## 3.1.4 Clean up your environment 
+Except `myCAGEset` and `samples`
+
+```{r}
+rm( list = ls()[!ls() %in% c("myCAGEset", "samples")])
+```
+<br>
+
+# 3.2 Annotation of genomic features
+The majority of CAGE data is expected to fall within known promoters and near known TSSs due to the nature of the method. Let's see if this is true for our two samples. For this, we need the TCs from each sample and also the known annotations of the zebrafish genome. We will do this in stages. Let's first export the TCs and normalized tag per million for the samples and store into a GRanges object in a list.
+<br> <br>
+
+We will use `tagClusters()` to extract for the TCs as we have done above. However, instead of add these directly to the list we will store these as GRanges objects.
+<br>
+For the GRanges we will use the interquantile width as start and end. In addition, we add the extra information of the tc.
 
 ```{r, message = FALSE}
 # packages
@@ -67,24 +148,23 @@ require(GenomicRanges)
 require(GenomicFeatures)
 
 # GRanges
-tc.gr <- GRanges(seqnames = tc$chr,
-                 ranges = IRanges(start = tc$q_0.1, end = tc$q_0.9),
-                 strand = tc$strand,
-                 seqlengths = seqlengths(Drerio))
-values(tc.gr) <- cbind(values(tc.gr),tc[,6:9])
-```
-
-We don't want to do this for each sample seperately each time so let's create a list for downstream designed functions:
-```{r}
-tc.list <- list()  ## create empty list
+tc.gr.list <- list()  
 for ( i in samples ) {
-  tc <- tagClusters(myCAGEset, sample = i, returnInterquantileWidth = TRUE, qLow = 0.1, qUp = 0.9)  
+  
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  
   tc.gr <- GRanges(seqnames = tc$chr,
                  ranges = IRanges(start = tc$q_0.1, end = tc$q_0.9),
                  strand = tc$strand,
                  seqlengths = seqlengths(Drerio))
+  
   values(tc.gr) <- cbind(values(tc.gr),tc[,6:9])
-  tc.list[[i]] <- tc.gr
+  
+  tc.gr.list[[i]] <- tc.gr
 }
 ```
 
@@ -98,21 +178,21 @@ saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
 ```
 
 We define similar features to (carnici et al):
-```{r, message=FALSE}
+```{r, message=FALSE,warning=FALSE}
 # load txdb
 txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
 
 ### gene features
 # 5' UTR (500bp window around refgene TSS)
-promoters = trim(promoters(txdb, upstream=500, downstream=500))
+promoters <- trim(promoters(txdb, upstream=500, downstream=500))
 # 5 kb upstream - 500bp 
-upstream = trim(flank(promoters, 5000))
+upstream <- trim(flank(promoters, 5000))
 # exons
 exons <- exons(txdb)
 # introns
-introns = intronsByTranscript(txdb)
+introns <- intronsByTranscript(txdb)
 # genes
-gene = genes(txdb)
+gene <- genes(txdb)
 ```
 
 We want to overlap our TCs per sample for each feature and count the occurances per sample:
@@ -171,7 +251,7 @@ GeneFeatfun <- function(x){
 ```
 > Note that this function works on all GRanges objects, so if you want to check individual CTSSs or consensus clusters you can use this too!
 
-Now run this function over our list and see the top 5 lines of zf_512cells. What are the numbers by categories?
+Let's run this function over our list and see the top 5 lines of zf_512cells. What are the numbers by categories?
 ```{r}
 tc.gfeat <- lapply(tc.list, GeneFeatfun)
 head(tc.gfeat$zf_512cells)
@@ -199,88 +279,147 @@ ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) +
 
 
 All good, this is what we would expect!
-
-# 3.2 Annotation of Genes
-In this example we want to know if the consensus clusters are
-
-
-
-#### GREAT
-
+<br>
 
 # 3.3 Promoter types and peaks
+There are different types of promoters: sharp, broad, bla, and blah. Here, we are going to distinguish sharp and broad promoters and use these for the next section as well. 
 
+#### Promoter interquantile widths
+The first thing you want to do might be a density plot of the interquantile widths for both samples. For, this we'll use the TCs to plot in a overlay density plot using `ggplot2`. The threshold will be set at >= 5 tpm for the TC to be included.
 
-# 3.4 Gene ontology
-more bla bla
+```{r}
+tc.list <- list()  
+for ( i in samples ) {
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  tc.list[[i]] <- tc[tc$tpm >= 5,] # threshold
+}
+
+plot.tc <- NULL
+for(i in 1:length(samples)){
+  a <- tc.list[[i]][,c("tpm","interquantile_width")]
+  a$group <- samples[i]
+  plot.tc <- rbind(plot.tc,a)
+}
+
+# density
+print( ggplot(plot.tc, aes(x = interquantile_width, fill = group)) + geom_density(alpha=0.5) + theme_bw() + 
+         scale_fill_brewer(palette = "Set1") + ggtitle("Density overlay width TC") +
+         coord_cartesian(xlim = c(0,100)) )
+
+```
+
 
 # 3.5 Heatmaps
+Lastly, we can visualize the sequence surrounding the dominant CTSS using heatmaps. To this end, we'll use the package _heatmaps_. We need the following for this:
+
+* The genomic position of dominant TSS of TCs
+* GRanges object 
+* Attach the sequence 400 up and downstream of the site
+* Determine the order with interquantile widths
+* Plot heatmap
+
+First the GRanges list with the dominant CTSS genomic position:
+```{r}
+# packages
+require(heatmaps)
+require(BSgenome.Drerio.UCSC.danRer7)
+
+# make list with GRanges with start and end at dominant CTSS position
+tc.gr.domTss.list <- list()  
+for ( i in samples ) {
+  
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  
+  tc.gr <- GRanges(seqnames = tc$chr,
+                 ranges = IRanges(start = tc$dominant_ctss, end = tc$dominant_ctss),
+                 strand = tc$strand,
+                 seqlengths = seqlengths(Drerio))
+  
+  values(tc.gr) <- cbind(values(tc.gr),tc[,c(8,12)])
+  
+  tc.gr.domTss.list[[i]] <- tc.gr
+}
+
+```
 
 
+Specify the window of wich we want the sequences of zf_512cells
+```{r, message = FALSE, warning = FALSE}
+i = samples[1]
+flanking <- promoters(tc.gr.domTss.list[[i]], upstream = 400,downstream = 400)
+```
+There is one region now out of the range of the chromosomes (specified by seqlenghts). Run the following
+```{r}
+idx <- GenomicRanges:::get_out_of_bound_index(flanking)
+
+if (length(idx) != 0L)
+    flanking <- flanking[-idx]
+```
+
+Now attach the sequences:
+```{r}
+zfseq <- getSeq(Drerio, flanking)
+```
+
+Order the sequences in this case for interquantile width:
+
+```{r}
+t = order(flanking$interquantile_width) # the order
+fa = zfseq[t] # zf sequences reordered
+```
+
+Now the heatmap. We need to specifiy some settings first such as the smoothing and set the coordinates 
+```{r}
+SmoothPatternHM = function(seq, pattern, ...) {
+    hm = PatternHeatmap(seq, pattern, ...)
+    smooth(hm, output.size=(250, 500))
+}
 
 
+coords = c(-400,400) # coordinates window
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-<br>
-
-
-# Export tables 
-<br> <br>
-We will save this dataframe seperately for later today. I suggest to rename the column names with the samples that are used here to remember later which was group x and group y:
-
-
+hm_list = list(
+    ta=SmoothPatternHM(fa, "TA", coords=coords),
+    cg=SmoothPatternHM(fa, "CG", coords=coords),
+    ww=SmoothPatternHM(fa, "WW", coords=coords),
+    ss=SmoothPatternHM(fa, "SS", coords=coords)
+)
+```
 
 
 ```{r}
-colnames(shifting.promoters)[7:8] <- paste(samples[c(4,11)], ".pos", sep = "") 
-write.table(shifting.promoters,
-            "../Data/intermediate/ShiftedPromoters_sc06_fdr001_2samples.txt", 
-            col.names = TRUE,
-            row.names = FALSE, 
-            quote = FALSE, 
-            sep = "\t")
+par(mfrow=c(1,2))
+plotHeatmap(hm_list$ta, options=upperOpts)
+plotHeatmap(hm_list$cg, options=upperOpts)
+
+
+plotHeatmap(hm_list$ww, options=lowerOpts)
+plotHeatmap(hm_list$ss, options=lowerOpts)
+mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
+
 ```
 
 
 
-## 3.1 Gene annotation and Gene ontology
-<br>
-Let's start by having a TxDb for our samples. The TxDb was created with the code below and _can be found in the provided data directory_. 
 
-```{r, eval = FALSE}
-# dan rerio v7
-require(GenomicFeatures)
-require(AnnotationDbi)
-txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
-saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+
+
+
+
+
+
+# References
+
+
+# Session Info
+```{r, echo=FALSE}
+sessionInfo()
 ```
-
-Load in the the txdb:
-```{r}
-require(GenomicFeatures)
-require(AnnotationDbi)
-txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
-```
-
-Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.
-
-## 3.2 Heatmaps
-

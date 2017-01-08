@@ -32,7 +32,6 @@ _CAGEr_
 
 _DESeq2_
 
-* Normalise the data
 * Differential expression
 
 _Follow up_
@@ -249,17 +248,15 @@ write.table(res.info,
 
 
 
-## 4.3 Gene annotation and Gene ontology
+# 4.3 Gene annotation and Gene ontology
 <br>
-Let's start by having a TxDb for our samples. The TxDb was created with the code below and _can be found in the provided data directory_. 
 
-```{r, eval = FALSE}
-# dan rerio v7
-require(GenomicFeatures)
-require(AnnotationDbi)
-txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
-saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
-```
+#### GREAT
+
+
+
+Let's start loading in the TxDb for our samples that can be found in the _provided data directory_. 
+
 
 Load in the the txdb:
 ```{r}
@@ -268,23 +265,6 @@ require(AnnotationDbi)
 txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
 ```
 
-Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.
-
-```{r, message = FALSE, warning = FALSE}
-# Promoters (500bp window around refgene TSS)
-promoters = trim(promoters(txdb, upstream=500, downstream=500))
-# 5 kb upstream - 500bp 
-upstream = trim(flank(promoters, 5000))
-# exons
-exons <- exons(txdb) 
-# exons grouped by gene:
-exons_gene <- reduce(exonsBy(txdb,"gene"))
-
-# introns
-introns = intronsByTranscript(txdb)
-# genes
-gene = genes(txdb)
-```
 
 To use the useful features of GenomicRanges we will have to convert our differential expression result to a GRanges object too:
 
@@ -301,9 +281,21 @@ gr <- GRanges(seqnames = total$chr,
 ```
 
 
+```{r}
+require(biomaRt)
+
+# older version of ensembl 79
+ensembl =useMart('ENSEMBL_MART_ENSEMBL', host = 'mar2015.archive.ensembl.org', dataset='drerio_gene_ensembl')
 
 
 
+test <- getBM(
+    attributes=c('hgnc_symbol'), 
+    filters = c('chromosome_name', 'start', 'end' ), 
+    values = with(res.info, list(gsub("chr", "", as.character(chr)), start, end)),
+    mart = ensembl )
+
+```
 
 
 # References

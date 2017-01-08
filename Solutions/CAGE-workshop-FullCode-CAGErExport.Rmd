@@ -88,7 +88,7 @@ Now go to the [UCSC Genome Browser](https://genome-euro.ucsc.edu/cgi-bin/hgGatew
 
 Great! We now are looking at a region in chr21 and should look like shown below. On which strand do we see the signals?
 
-![Genome browser picture](../images/ucsc_capture_2Samples.tiff)
+![Genome browser picture](../images/ucsc_capture_2Samples.png)
 
 > Please note that because we set it to autoscale, the bars of both samples may seem evenly expressed but that is not true. The sample in blue goes up to value 10.3 whilst the sample in red to 31.2. To give a better picture of what's happening here, you can set both to ___vertical viewing range___ and choose a ___max value___ (here maybe 35). 
 
@@ -133,7 +133,7 @@ Now revisit the [UCSC Genome Browser](https://genome-euro.ucsc.edu/cgi-bin/hgGat
 
 As you can see from the custom tracks, the pevious bedGraphs are still there and we have added the TC widths for each samples. 
 
-![Genome browser picture TCs added](../images/ucsc_capture_TCwidth.tiff)
+![Genome browser picture TCs added](../images/ucsc_capture_TCwidth.png)
 
 > The bars are adjusted to a max value of 35 for the CTSS. Can you see the difference?
 
@@ -143,4 +143,7 @@ As you can see from the custom tracks, the pevious bedGraphs are still there and
 The genome browser picture showing both the TCs and CTSSs highlights something to keep in mind about consensus clusters. The distribution of CTSS that form the TC in prim6 overlap two seperate TCs in the 512 cell stage.
 
 
-# References
+# Session Info
+```{r, echo=FALSE}
+sessionInfo()
+```

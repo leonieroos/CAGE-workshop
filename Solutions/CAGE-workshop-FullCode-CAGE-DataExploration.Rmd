@@ -1,0 +1,286 @@
+---
+title: "3. Exploring CAGE Data within R"
+output:
+  html_notebook: default
+  html_document: default
+  df_print: paged
+  number_sections: yes
+  toc: yes
+---
+<br>
+In this practical we will explore the data of our two samples within the R environment outside the _CAGEr_ functions we have performed earlier. Normally, some of these you would do during your analysis pipeline to check the data throughout. To this end, we show how to extract CAGE signals from the _CAGEr_ package that are convenient for downstream analyses. We will look at different promoter types, annotation of tag clusters (TCs), visualization with heatmaps, and gene ontology (GO).
+
+
+## Summary and goals of this practical
+<br>
+_CAGEr_ 
+
+* Prepare the right data formats 
+
+_General R environment_
+
+* Annotation 
+* Promoter types and peaks
+* Gene ontology
+
+_Heatmaps_ (R package)
+
+* Dinucleotide heatmaps
+* Motif (pwm) hetampas
+
+## Data used this tutorial
+
+Let's load in our CAGEset made of two samples:
+```{r, message = FALSE}
+require(CAGEr)
+load("../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
+```
+
+
+# Use _CAGEr_ to extract data
+_CAGEr_ has multiple functions to easily extract information; from CTSSs to consensus clusters. We'll go quickly through the ones we're going to be using here:
+
+* 
+
+# 3.1 Annotation of genomic features
+The majority of CAGE data is expected to fall within known promoters and near known TSSs due to the nature of the method. Let's see if this is true for our two samples. For this, we need not only the TCs from each sample, but also the known annotations of the zebrafish genome. We will do this in stages. Let's first export the TCs and normalized tag per million for one sample and make into a GRanges oject.
+<br> <br>
+Which samples were in our object again? Use `sampleLabels(myCAGEset)` and assign just the sample labels to `samples`.
+```{r}
+samples <- unname(sampleLabels(myCAGEset))
+samples
+```
+We will use `tagClusters()` to extract for the TCs and include inter quantile widths that we previously calculated. Run the code below and see what that function extracts for zf_512cells. Note, this function only works per sample and needs the sample label.
+
+```{r}
+i = samples[1]
+tc <- tagClusters(myCAGEset, sample = i, returnInterquantileWidth = TRUE, qLow = 0.1, qUp = 0.9)
+head(tc)
+```
+
+This we will make into a GRanges using the interquantile width as start and end. In addition we add the extra information.
+
+```{r, message = FALSE}
+# packages
+require(BSgenome.Drerio.UCSC.danRer7)
+require(GenomicRanges)
+require(GenomicFeatures)
+
+# GRanges
+tc.gr <- GRanges(seqnames = tc$chr,
+                 ranges = IRanges(start = tc$q_0.1, end = tc$q_0.9),
+                 strand = tc$strand,
+                 seqlengths = seqlengths(Drerio))
+values(tc.gr) <- cbind(values(tc.gr),tc[,6:9])
+```
+
+We don't want to do this for each sample seperately each time so let's create a list for downstream designed functions:
+```{r}
+tc.list <- list()  ## create empty list
+for ( i in samples ) {
+  tc <- tagClusters(myCAGEset, sample = i, returnInterquantileWidth = TRUE, qLow = 0.1, qUp = 0.9)  
+  tc.gr <- GRanges(seqnames = tc$chr,
+                 ranges = IRanges(start = tc$q_0.1, end = tc$q_0.9),
+                 strand = tc$strand,
+                 seqlengths = seqlengths(Drerio))
+  values(tc.gr) <- cbind(values(tc.gr),tc[,6:9])
+  tc.list[[i]] <- tc.gr
+}
+```
+
+Next, we want to extract the information of known promoters, genes, introns, and exons from the right zebrafish build. We want to use Ensembl and not RefGene in a TxDb. The TxDb was created with the code below and _can be found in the provided data directory_ (do not run today). 
+
+```{r, eval = FALSE}
+# dan rerio v7
+require(AnnotationDbi)
+txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+```
+
+We define similar features to (carnici et al):
+```{r, message=FALSE}
+# load txdb
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+
+### gene features
+# 5' UTR (500bp window around refgene TSS)
+promoters = trim(promoters(txdb, upstream=500, downstream=500))
+# 5 kb upstream - 500bp 
+upstream = trim(flank(promoters, 5000))
+# exons
+exons <- exons(txdb)
+# introns
+introns = intronsByTranscript(txdb)
+# genes
+gene = genes(txdb)
+```
+
+We want to overlap our TCs per sample for each feature and count the occurances per sample:
+
+* promoter
+* 5kb upstream of promoter
+* exons
+* introns
+* gene
+
+Now we know that a region in the genome can overlap multiple genomic features and we want for now a single feature per TC. Accordingly, each feature is overlapped with our TCs using `subsetByOverlaps()` and concatenated. Subsequently the dataframe will be aggregated to one row per TC and the feature is selected based on priority as listed above.
+<br>
+
+We Let's design a function for ease of use that uses a GRanges as variable:
+
+```{r}
+GeneFeatfun <- function(x){ 
+  ## create identifyer for x
+  x$tag.id <- paste("tagid_",1:length(x))
+  
+  ## subset for each feature and concatenate
+  # gene
+  df <- as.data.frame(subsetByOverlaps(x, gene)); df$feat = "gene"
+  all <- df
+  # prom 
+  df <- as.data.frame(subsetByOverlaps(x, promoters)); df$feat = "promoter"
+  all <- rbind(all, df)
+  # 5 kb upstream
+  df <- as.data.frame(subsetByOverlaps(x, upstream)); df$feat = "upstream"
+  all <- rbind(all, df)
+  # exons
+  df <- as.data.frame(subsetByOverlaps(x, exons)); df$feat = "exon"
+  all <- rbind(all, df)
+  # introns
+  df <- as.data.frame(subsetByOverlaps(x, introns)); df$feat = "intron"
+  all <- rbind(all, df)
+  
+  ## collapse to one per tagid but keep multiple Features:
+  group <- aggregate(all[, "feat"], by = list(all$tag.id), paste, collapse = ";")
+  feat_all <- group$x
+  
+  ## give priority to associate one genomic feature per tag.id 
+  group$x[grep("promoter", group$x)] = "promoter" 
+  group$x[grep("upstream", group$x)] = "upstream" 
+  group$x[grep("exon", group$x)] = "exon" 
+  group$x[grep("intron", group$x)] = "intron" 
+  group$y <- feat_all
+  colnames(group)[2:3] <- c("feat_single", "feat_all")
+  
+  ## merge to x to get all the original data
+  y <- merge(x, group, by.x = "tag.id", by.y = "Group.1", all.x = TRUE)
+  y$feat_single[which(is.na(y$feat_single))] = "intergenic"
+  return(y)
+}
+
+```
+> Note that this function works on all GRanges objects, so if you want to check individual CTSSs or consensus clusters you can use this too!
+
+Now run this function over our list and see the top 5 lines of zf_512cells. What are the numbers by categories?
+```{r}
+tc.gfeat <- lapply(tc.list, GeneFeatfun)
+head(tc.gfeat$zf_512cells)
+table(tc.gfeat$zf_512cells$feat_single)
+```
+
+
+Let's plot histograms for zf_512cells:
+```{r}
+# package
+require(ggplot2)
+
+tab <- data.frame(table(tc.gfeat$zf_512cells$feat_single))
+tab$perc <- (tab$Freq/sum(tab$Freq))*100
+tab$Var1 = factor(x = tab$Var1, levels = c("upstream","promoter","exon","intron","gene","intergenic"))
+  
+ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) + 
+  geom_bar(stat = "identity", position = position_dodge(),fill = "forestgreen") + 
+  xlab("Gene Feature") + ylab("TC") + ggtitle("Genomic Features") + 
+  scale_alpha_discrete(range = c(1, 0.3)) +
+  theme(text = element_text(size=16), panel.background=element_rect(fill = "white", colour = "black"), 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+All good, this is what we would expect!
+
+# 3.2 Annotation of Genes
+In this example we want to know if the consensus clusters are
+
+
+
+#### GREAT
+
+
+# 3.3 Promoter types and peaks
+
+
+# 3.4 Gene ontology
+more bla bla
+
+# 3.5 Heatmaps
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+# Export tables 
+<br> <br>
+We will save this dataframe seperately for later today. I suggest to rename the column names with the samples that are used here to remember later which was group x and group y:
+
+
+
+
+```{r}
+colnames(shifting.promoters)[7:8] <- paste(samples[c(4,11)], ".pos", sep = "") 
+write.table(shifting.promoters,
+            "../Data/intermediate/ShiftedPromoters_sc06_fdr001_2samples.txt", 
+            col.names = TRUE,
+            row.names = FALSE, 
+            quote = FALSE, 
+            sep = "\t")
+```
+
+
+
+## 3.1 Gene annotation and Gene ontology
+<br>
+Let's start by having a TxDb for our samples. The TxDb was created with the code below and _can be found in the provided data directory_. 
+
+```{r, eval = FALSE}
+# dan rerio v7
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Load in the the txdb:
+```{r}
+require(GenomicFeatures)
+require(AnnotationDbi)
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+```
+
+Let's run through a few things first and build a function for later purposes. First defining gene features to later assess in our differentially expressed cTSSs: promoters, upstream seq (5kb of promoter), exons, introns, and gene as annotated in ensemble. These will be in GRanges objects.
+
+## 3.2 Heatmaps
+

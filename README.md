@@ -23,11 +23,6 @@ It's a whole day workshop that contains presentations, and praticals that includ
 	- End results
 
 
-	
-### Tutorials (Guidance and questions)
-
 ### Solutions (Complete code for practical)
-- scripts
-	- including bib file
-- images (if any external images are used
+
 

@@ -78,6 +78,40 @@ biocLite("BSgenome.Drerio.UCSC.danRer7")
 ```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
 install.packages("ZebrafishDevelopmentalCAGE", repos = NULL, type="source")
 ```
+  Or use the following code to install straight from the website from R:
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("http://promshift.genereg.net/CAGEr/PackageSource/ZebrafishDevelopmentalCAGE_0.99.0.tar.gz", repos = NULL) 
+```
+
+- SeqPattern
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("Seqpattern")
+```
+
+- EBImage
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+biocLite("EBImage")
+```
+
+- Genomation
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("genomation")
+```
+
+- EdgeR
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("edgeR")
+```
+
+- Rtracklayer
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("rtracklayer")
+```
+
 
 The following are R CRAN packages, also install within R:
 
@@ -90,7 +124,23 @@ install.packages("RColorBrewer", repos="http://cran.rstudio.com/")
 ```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
 install.packages("pheatmap", repos="http://cran.rstudio.com/")
 ```
+
+- Devtools
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("devtools")
+```
   
+- Dplyr 
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("dplyr")
+```
+
+Install a package from github within R:
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install_github("mgperry/heatmaps")
+```
+
+
 ### Software
 The following software should be installed from the terminal/command line:
 

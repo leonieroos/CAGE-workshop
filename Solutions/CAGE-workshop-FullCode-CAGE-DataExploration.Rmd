@@ -452,7 +452,7 @@ Sharp promoters have a higher occurence for a TATA-box motif!
 <br>
 
 # 3.5 Heatmaps
-Lastly, we can visualize the sequence surrounding the dominant CTSS using density heatmaps. To this end, we'll use the package _heatmaps_. We need similar data to described in 3.3.1 and 3.3.2 but we can extend the window to 400 up and downstream:
+Lastly, we can visualize the sequence surrounding the dominant CTSS using density heatmaps. To this end, we'll use the package [heatmaps](https://github.com/mgperry/heatmaps). We need similar data to described in 3.3.1 and 3.3.2 but we can extend the window to 400 up and downstream:
 
 * The genomic position of dominant TSS of each TC in GRanges 
 * Add 400 bp up and downstream of TSS as start and end

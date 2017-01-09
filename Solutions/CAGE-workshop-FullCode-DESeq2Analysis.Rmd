@@ -2,13 +2,11 @@
 title: "4. Differential Gene Expression Analysis with DESeq2"
 output:
   html_notebook: default
-  html_document: default
   df_print: paged
-  number_sections: yes
-  toc: yes
+  variant: markdown_github
 ---
 <br>
-CAGE data can also be used to assess expression of the cTSSs. Here, we will use the R-package DESeq2 [@love_moderated_2014]. Originated for RNA-seq data but can also handle similar data from other assaya types (such as CAGE data). The vignette and reference manual can be displayed by running the code below or can be found here: [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
+CAGE data can also be used to assess expression of the cTSSs. Here, we will use the R-package DESeq2 (Love _et al_, 2014). Originated for RNA-seq data but can also handle similar data from other assaya types (such as CAGE data). The vignette and reference manual can be displayed by running the code below or can be found here: [DESeq2](https://bioconductor.org/packages/release/bioc/html/DESeq2.html). 
 <br> <br>
 Up to now, we have worked with just two samples. However, for a differential expression analysis you will need more samples such as replicates and/or more of the same group. To this end, we'll include two more samples to the mix as to follow the more standard work-flow and generate *p*-values. The two additional samples are from the same R package _ZebrafishDevelopmentalCAGE_. 
 <br> <br>
@@ -36,7 +34,7 @@ _DESeq2_
 
 _Follow up_
 
-* Gene ontology
+* Gene ontology - GREAT
 
 
 
@@ -248,55 +246,37 @@ write.table(res.info,
 
 
 
-# 4.3 Gene ontology
+# 4.3 Gene ontology with GREAT
 
-<br>
+Gene ontology can be done with various different tools. Here, we will use and explore [GREAT](http://bejerano.stanford.edu/great/public/html/index.php). GREAT stands for Genomic Regions Enrichment of Annotations Tool and has the option of Zebrafish: Wellcome Trust Zv9 (danRer7, Jul/2010) genome. There is a good summary [here](http://bejerano.stanford.edu/great/public/html/splash.php). So let's start exploring!
 
-#### GREAT
-
-
-
-Let's start loading in the TxDb for our samples that can be found in the _provided data directory_. 
-
-
-Load in the the txdb:
+<br><br>
+The input data needs to be in a BED format. However, first we need to specify what we want to assess. Create a dataframe that only contains results with _p_-values < 0.01 and with a negative log2FoldChange. How many regions does it contain?
 ```{r}
-require(GenomicFeatures)
-require(AnnotationDbi)
-txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+signi <- res.info[res.info$pvalue <= 0.01 & res.info$log2FoldChange < 0,]
+nrow(signi)
 ```
 
-
-To use the useful features of GenomicRanges we will have to convert our differential expression result to a GRanges object too:
-
+Now save as a BED format:
 ```{r}
-# packages
-require(BSgenome.Drerio.UCSC.danRer7)
-
-total = res.info 
-gr <- GRanges(seqnames = total$chr,
-                ranges = IRanges(start = total$start,end = total$end),
-                strand = total$strand,
-                cons_clus_id = total$clus.gene, # the identifier
-                seqlengths = seqlengths(Drerio))
+bed <- cbind(signi[ , c(1:3, 5)], 1, signi[ , 4])
+write.table(bed,
+            "../Data/intermediate/DiffExpression_downReg_p0.01.bed", 
+            col.names = FALSE, 
+            row.names = FALSE, 
+            quote = FALSE, 
+            sep = "\t")
 ```
 
-
-```{r}
-require(biomaRt)
-
-# older version of ensembl 79
-ensembl =useMart('ENSEMBL_MART_ENSEMBL', host = 'mar2015.archive.ensembl.org', dataset='drerio_gene_ensembl')
+Go to the website [GREAT](http://bejerano.stanford.edu/great/public/html/index.php), select the zebrafish genome build under _Species Assembly_. In _Test Regions_ browse and upload our newly made bed file. And click the ___Submit___ button at the bottom of the page. 
+<br> <br>
+Click away on all the options!
 
 
 
-test <- getBM(
-    attributes=c('hgnc_symbol'), 
-    filters = c('chromosome_name', 'start', 'end' ), 
-    values = with(res.info, list(gsub("chr", "", as.character(chr)), start, end)),
-    mart = ensembl )
-
-```
 
 
 # References
+
+
+Love MI, Huber W, Anders S. Moderated estimation of fold change and dispersion for RNA-seq data with DESeq2. Genome Biology. 2014;15(12):550. doi:10.1186/s13059-014-0550-8.

@@ -247,7 +247,9 @@ write.table(res.info,
 
 
 
-# 4.3Gene ontology
+
+# 4.3 Gene ontology
+
 <br>
 
 #### GREAT

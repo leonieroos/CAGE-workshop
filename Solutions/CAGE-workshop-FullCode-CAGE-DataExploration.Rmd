@@ -135,6 +135,7 @@ rm( list = ls()[!ls() %in% c("myCAGEset", "samples")])
 
 # 3.2 Annotation of genomic features
 The majority of CAGE data is expected to fall within known promoters and near known TSSs due to the nature of the method. Nepal _et al_., 2013, already showed for all of the 12 developmental samples that the majority falls at the 5'end (500 bp upstream the first exon). Let's see this ourselves for our two samples. For this, we need the TCs from each sample and also the known annotations of the zebrafish genome. We will do this in stages. Let's first export the TCs and normalized tag per million for the samples and store into a GRanges object in a list.
+
 <br> <br>
 
 We will use `tagClusters()` to extract for the TCs as we have done above. However, instead of add these directly to the list we will store these as GRanges objects.
@@ -168,7 +169,9 @@ for ( i in samples ) {
 }
 ```
 
+
 Next, we want to extract the information of known promoters (500 bp upstream), genes, introns, and exons from the right zebrafish build. We want to use Ensembl and not RefGene in a TxDb. The TxDb was created with the code below and _can be found in the provided data directory_ (do not run today). 
+
 
 ```{r, eval = FALSE}
 # dan rerio v7
@@ -277,12 +280,12 @@ ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) +
 ```
 
 
-
 All good, this is very similar to previously reported for these samples!
 <br>
 
 # 3.3 Promoter types and peaks
 There are different types of promoters depending on the : sharp, broad, bla, and blah. Here, we are going to distinguish sharp and broad promoters and use these for the next section as well. Carninci _et al._, 2006.  
+
 
 #### Promoter interquantile widths
 The first thing you want to do might be a density plot of the interquantile widths for both samples. For, this we'll use the TCs to plot in a overlay density plot using `ggplot2`. The threshold will be set at >= 5 tpm for the TC to be included.
@@ -312,12 +315,14 @@ print( ggplot(plot.tc, aes(x = interquantile_width, fill = group)) + geom_densit
 
 ```
 
+
 #### Sharp and broad promoters
 
 ```{r}
 require(seqPattern)
 
 ```
+
 
 
 
@@ -426,6 +431,7 @@ mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
 
 
 # References
+
 Carninci P, et al. Genome-wide analysis of mammalian promoter architecture and evolution. Nature Genetics. 2006;38:626–635. doi:.10.1038/ng1789
 
 

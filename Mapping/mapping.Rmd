@@ -1,0 +1,176 @@
+---
+title: "Mapping to *Danio rerio* chromosome 11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+### Quality control and processing of the raw sequence file
+Lets first check the quality of our data. We will first run *fastqc* on the *30epi_chr11.fastq.gz* file (make sure it is installed).
+```{bash, eval = FALSE, include = TRUE}
+fastqc 30epi_chr11.fastq.gz
+```
+
+After running *fastqc* on our *30epi_chr11.fastq.gz* file we see that our reads contain sequences that are repeated in every read (high kmer content in the beginning of each sequence), GC content is skewed and all sequences start with G. Why is that? Check the beginning of each seqeuence in the *.fastq.gz* file.
+  
+  
+ANSWER: How do we check the raw sequences?  
+```{bash, eval=FALSE, include=TRUE}
+gzcat 30epi_chr11.fastq.gz | head
+```
+
+We see EcoP15 recognition site on the 5'end, and the 3'-Illumina adaptor on the 3'-end of the read. Our reads are 47bp long, and the __TAGGING CAGE__ version of the protocol produces reads that start with the restriction site (6nt) + 27nt read + 14nt adaptor = 47nt in total. How come we have 47nt?
+
+This means, that we need to trimm the 6nt from the 5'-end and 14nt from the 3'-end to produce a mappable read.  
+We will use a Python tool *cutadapt* to do this.  
+Lets first see how to run it:
+
+```{bash, eval=FALSE, include=TRUE}
+cutadapt
+```
+
+We can either specify the exact sequence, or specify the number of nucleotides to remove.
+
+```{bash, eval=FALSE, include=TRUE}
+cutadapt -u +6 -u -14 -o 30epi_chr11_trimmed.fastq.gz 30epi_chr11.fastq.gz
+```
+
+Or we can even specify within *bowtie2* to do the trimming prior to mapping (see later..)
+
+Lets see how our reads look now:
+```{bash, eval = FALSE, include=TRUE}
+gzcat 30epi_chr11_trimmed.fastq.gz | head
+```
+
+### Mapping using *bowtie2* 
+There are many mapping algorithms, each with its advantages and disadvantages.  
+Commonly used are *bwa*, *bowtie*, *bowtie2*, *tophat*, *tophat2* or *star*.  
+Here, we will use *bowtie2*, as it is known to be a memory-efficient tool, very good at aligning reads about 50 up to 100 bp long to relatively long genomes. It supports single-end, paired-end, gapped and local alignment modes.  
+More about this aligner can be found on: <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>.
+
+First we need to build the index for our reference genome/chromosome 11. Why?
+Lets first see how to use the *bowtie2-build* tool:
+
+```{bash, eval=FALSE, include=TRUE}
+bowtie2-build
+```
+
+We can see that the syntax for using *bowtie2-build* is to specify the genome.fasta file and the output basename.
+
+```{bash, eval=FALSE, include=TRUE}
+bowtie2-build danRer10chr11.fa danRer10chr11
+```
+
+Lets see what we created in our folder:
+
+```{bash, eval=FALSE, include=TRUE}
+ls
+```
+
+We can see that 6 files with our specified basename *danRer10chr11[1-4].bt2* appeared.  
+Now we can map our reads from chromosome 11 (30epi_chr11_trimmed.fastq.gz) to the indexed reference genome (chromosome 11).
+
+Lets first check how to use *bowtie2*: 
+```{bash, eval=FALSE, include=TRUE}
+bowtie2
+```
+
+To start the mapping:
+```{bash, eval=FALSE, include=TRUE}
+bowtie2 -x danRer10chr11 -U 30epi_chr11_trimmed.fastq.gz -S 30epi_chr11_trimmed.sam
+```
+
+Alternatively, we can set trimming within *bowtie2* and skip trimming using *cutadapt*. To map and trimm (remove restriction site and the 3'-adaptor sequence):
+```{bash, eval=FALSE, include=TRUE}
+bowtie2 -5 6 -3 14 -x danRer10chr11 -U 30epi_chr11.fastq.gz -S 30epi_chr11.sam
+```
+
+This standard text format for storing sequence data in a human readable format is the SAM format. Lets see how it looks:  
+
+```{bash, eval=FALSE, include=TRUE}
+head 30epi_chr11.sam
+```
+  
+We can see that the alignment contains:  
+   - query name, QNAME  
+   - FLAG - bitwise set of information describing the alignment  
+   - reference sequence name (RNAME), i.e. the chromosome name  
+   - leftmost position of where this alignment maps to the reference  
+   - mapping quality MAPQ  
+   - CIGAR string indicating alignment information  
+   - the reference sequence name of the next alignment in this group (paired alignment, mate name)  
+   - leftmost position of the next alignement in the group  
+   - length of this group from the leftmost position to the rightmost position  
+   - query quality for this alignment (QUAL), one for each base in the alignment  
+   - TAGs - additional optional information that can be used for filtering  
+
+  
+### Processing of the mapped file using *samtools*
+More common representation that is used for futher processing is the compressed binary version of the SAM format, called BAM format.   
+We can convert our SAM file to a BAM file. For this, we will use *SAMTOOLS*.  
+
+```{bash, eval=FALSE, include=TRUE}
+samtools view -S -b -q 10 -o 30epi_chr11.bam 30epi_chr11.sam
+```
+What did we do with * -q 10 *? How can we check how many reads did we have in the original *.sam* file vs *.bam* file?  
+
+ANSWER:  
+Each row in the *.SAM* file is one mapped read, so we can just count the rows, and compare it to the number of rows in the filtered *.BAM* output:  
+
+```{bash, eval=FALSE, include=TRUE}
+wc -l 30epi_chr11.sam
+```
+
+To check the number of lines in the *.BAM* output, we need to use *samtools*:  
+
+```{bash, eval=FALSE, include=TRUE}
+samtools view 30epi_chr11.bam | wc -l
+```
+
+We can see that we have fewer reads, and removed a substantial amount of low-quality mapped reads. What are these reads? -remember what is the meaning of MAPQ?  
+
+We are working with only one chromosome, therefore there is no need for sorting. However, in the future you will be working with whole genomes, and to access the data and run some programs as quickly as possible, sorting according to the chromosomes and start positions are very helpful.  
+We can do this using *samtools*:  
+
+```{bash, eval=FALSE, include=TRUE}
+samtools sort -l 9 -T 30epi_chr11.tmp -o 30epi_chr11.sorted.bam 30epi_chr11.bam
+```
+Note that we specified the name of the output *.tmp* file and used the maximum compression level with ' -l 9'.  
+Can you spot the difference between the sorted and the unsorted file?
+Lets see:  
+
+```{bash, eval=FALSE, include=TRUE}
+samtools view 30epi_chr11.bam | head
+samtools view 30epi_chr11.sorted.bam | head
+```
+
+Note that the leftmost starting positions (column 4) are all sorted from smallest to largest. If we had additional chromosomes, the mapped reads would also be sorted according to chromosome names.
+
+Now all we need to do is index the *.bam* files for faster access.
+
+```{bash, eval=FALSE, include=TRUE}
+samtools index 30epi_chr11.sorted.bam
+```
+
+Notice that this created an additional binary file: 30epi_chr11.sorted.bam.bai.  
+We are ready to to import this *.bam* file into CAGEr.  
+
+  
+### Visualisation of raw mapped reads using *IGV genome browser*
+We can also inspect the raw alignment using the _IGV GENOME BROWSER_ (make sure it is installed as instructed).
+
+To inspect the raw alignment, open IGV, set the genome to danRer10, and find some reads.  
+We do not see much at first, but remember  that we only have about 300000 reads mapped to chr11.  
+Inspect some reads in the *30epi_chr11.sorted.bam* file and find the reads using the leftmost position.  
+
+ANSWER: 
+```{bash, eval=FALSE, include=TRUE}
+samtools view 30epi_chr11.sorted.bam | head
+```
+
+Copy paste the position of the first read into the browser in the form: chr11:2,848.
+
+
+
+

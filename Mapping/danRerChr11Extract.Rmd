@@ -1,0 +1,61 @@
+---
+title: "*Danio rerio* (danRer10) chromosome 11 extraction"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+*Danio rerio* genome is too big to manipulate and store for the needs of this workshop.   
+To map and manipulate CAGE data, we will use only one chromosome.   
+The following text explains how a FASTA file with a single chromosome was generated (chromosome 11).  
+All commands within these instructions should be used within the Terminal (Mac OS) with the necessary tools pre-installed.   
+(see workshop tools instructions for installation).
+
+The whole genome, version danrRer10, can be downloaded from:
+<http://hgdownload.cse.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.fa.gz>
+The file is zipped, and can be unzipped using gunzip within our terminals:
+```{bash, eval=FALSE, include=TRUE}
+gunzip danRer10.fa.gz
+```
+
+However, for future reference, most programs work with compressed files, and we can keep them compressed to save memory.  
+The compressed file can be inspected using the following:
+```{bash, eval=FALSE, include = TRUE}
+gzcat danRer10.fasta.gz | head -n 10
+```
+
+Note that we were using a pipe to connect two commands: *gzcat* and *head*. 
+*head* allows us to inspect only the beginning of the file, and by using a flag -n, we specify we want to see the first 10 lines.
+
+The sequence of the chromosome 11 was extracted using samtools on a decompressed fasta file:
+```{bash, eval=FALSE, include=TRUE}
+$ samtools faidx danRer10.fa "chr11" > danRer10chr11.fa
+```
+
+Note that this also builds a fasta index file .fa.fai, which enabled us to quickly select and output chr11.
+The new fasta file containing chr11 can be inspected using:
+
+```{bash, eval=FALSE, include = TRUE}
+head danRer10chr11.fa
+```
+
+As a sanity check, we should see if the total length of our extracted chr11 corresponds to the reported original length of chr11 (number of bases).   
+Here <http://hgdownload.cse.ucsc.edu/goldenPath/danRer10/bigZips/danRer10.chrom.sizes>, we can see the bp lengths for each chromosome. Chr11 has 45107271 bp.
+How can we check the length of our extracted chr11?
+
+```{bash, eval = FALSE, include = TRUE}
+grep -v ">" danRer10chr11.fa | wc | awk '{print $3-$1}'
+```
+We can se that our output 45107271 matches the length of chr11.  
+  
+What did we do? 
+Check the output of the first part of commands:
+```{bash, eval = FALSE, include = TRUE}
+grep -v ">" danRer10chr11.fa | wc 
+```
+
+*grep* allows us to extract everything that is not the header of the fasta file.
+We redirect the output to *wc* (word, character, line and counter). 
+And the counted data is redirected to *awk*, which we use to calculate and print the difference between the 3rd and the 1st column (number of characters - number of lines). 
+Why is this important? How is a new line specified?

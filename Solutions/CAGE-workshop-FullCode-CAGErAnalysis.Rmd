@@ -8,7 +8,7 @@ output:
   toc: yes
 ---
 <br>
-In this part of the workshop, we will go through a sample workflow with the [CAGEr](http://bioconductor.org/packages/release/bioc/html/CAGEr.html) R package. We will use two samples at different stages in zebrafish development: 512 cell stage (~2,7 hours hpf) and Prim 6 (~24 hpf). These stages have been previously published by Nepal et al (2013) and are also easily available in one of the R-packages that can be found [here](http://promshift.genereg.net/CAGEr/PackageSource/). 
+In this part of the workshop we will go through a sample workflow with the [CAGEr](http://bioconductor.org/packages/release/bioc/html/CAGEr.html) R package (Haberle _et al._, 2015). Two samples were chosen at different stages in zebrafish development for this practical: 512 cell stage (~2,7 hours hpf) and Prim 6 (~24 hpf). These stages have been previously published by Nepal _et al_, 2013 and are also available in one of the R-packages that can be found [here](http://promshift.genereg.net/CAGEr/PackageSource/). 
 <br>
 <br>
 We will only go through all the standard functions and analyses of _CAGEr_ in this practical. In the following practicals of this workshop we will explore the data further.
@@ -96,43 +96,53 @@ As you can see the S4 object contains slots to store the data as we go along tha
 
 > Double check the input data information section for the reference genome and the sample labels! 
 
-At this stage we only have CTSS information as this is already the form of the data of the package. Only the (actual) tag count for each CTSS for both samples is stored. The slot of Normalized tpm is (still) empty as is the rest of the object. 
+At this stage we only have Cage TSS (CTSS) information. This is already the form of the data of this package. Only the (actual) tag count for each CTSS for both samples is stored here. The slot of Normalized tpm is (still) empty as is the rest of the object. <br> 
+If for example bam files are used, you would have to determine these CTSS still (see example code below and _CAGEr_ vignette). 
+
+
+```{r, eval = FALSE}
+myCAGEset = new("CAGEset", genomeName = "BSgenome.Drerio.UCSC.danRer7", 
+                inputFiles = file.path(..), inputFilesType = "bam",
+                sampleLabels = c("zf_512cells","zf_prim6")
+
+getCTSS(myCAGEset)
+```
 
 ## 1.2 Functions of CAGEr
 With the following few standard _CAGEr_ functions we will "fill in" all these slots and check some general features of the two samples.
+<br>
 
 ### Correlation plots
-First, we will look at the data globally between the samples, how similar are the samples? CAGEr has a function to look at the correlation between the samples and plots the png in the working directory: `plotCorrelation()`
+How similar are the two samples? _CAGEr_ has a function to look at the correlation between the samples and plots a png in the working directory: `plotCorrelation()`. 
 
-```{r}
+```{r, message=FALSE}
 plotCorrelation(myCAGEset, samples = "all", method = "pearson") 
 ```
 <img src="../images/CTSS_raw_values_pairwise_correlation.png" width="350">
 <br>
 <br>
-To access the correlations just assign the function to `corr.m` to keep a matrix of correlations:
+To access the correlations displayed in the terminal, just assign the function to `corr.m` to keep a matrix of correlations:
 
 ```{r}
 corr.m <- plotCorrelation(myCAGEset, samples = "all", method = "pearson") 
-corr.m # correlation 
 ```
+<br>
 
 ### Normalization
-At this point we have the actual tag counts per CTSS. Do we have different library sizes for these samples? To check our library sizes:
+At this point we have the actual tag counts per CTSS. Do we have different library sizes for these samples? To check our library sizes use `librarySizes()` on our cageset.
 
 ```{r, message = FALSE}
 # overview library sizes:
 librarySizes(myCAGEset)
 ```
-To make samples comparable we will need to normalize our data. _CAGEr_ offers both a _tags per million normalization_ and a _power-law based normalization_. Because many CAGE-seq data follow a power-law distrubtion (@balwierz), we'll use the power-law based normalization here.
+To make samples comparable, we will need to normalize our data. _CAGEr_ offers both a _tags per million normalization_ and a _power-law based normalization_. Because many CAGE-seq data follow a power-law distrubtion (Balwierz _et al._, 2009), we'll use the power-law based normalization here.
 <br>
-First we need to plot the reverse cumulatives. On the log-log scale
-this reverse cumulative distribution will manifest as a monotonically decreasing linear function of which the slope (alpha) is determined per sample.
+First we need to plot the reverse cumulatives with `plotReverseCumulatives()`. On the log-log scale this reverse cumulative distribution will manifest as a monotonically decreasing linear function of which the slope (alpha) is determined per sample.
 ```{r, message = FALSE}
 # normalisation first plot to assess alpha
 plotReverseCumulatives(myCAGEset, fitInRange = c(5, 1000), onePlot = TRUE) 
 ```
-From this, we can see the alpha for each sample and we can select the alpha as needed in the `normalizeTagCount()` function when method = "powerlaw". <br>
+From this we can see the alpha for each sample. Select the alpha for the normalization step, the `normalizeTagCount()` function when method = "powerlaw". <br> <br>
 What is the average alpha of the two samples? Is that the "Ref distribution" in the plot?
 
 ```{r, message = FALSE}
@@ -143,6 +153,7 @@ Let's check our object again, what is added and in which slot?
 ```{r, eval = FALSE}
 myCAGEset
 ```
+<br>
 
 ### Tag clusters of CTSSs
 CTSS' in close proximity of each other give rise to functionally similar set of transcripts within the same promoter elements. Thus, they are basically larger transcriptional units that correspond to individual promoters. 
@@ -155,7 +166,7 @@ To capture these, tag clusters (TC) of CTSS' can be easily defined within _CAGEr
 
 We will use a simple distance measurement (method = "distclu"). This means that the true distance in bp between individual CTSS is used. Let's set this at 20 bp (maxDist = 20), so that  individual CTSS can not be more than 20 bp apart to form the TC. 
 <br>
-We also set the threshold at 1 which means that each CTSS should have 2 or more tag counts in all the samples prior to clustering so as to exclude low fidelity CTSSs. 
+We also set the threshold at 1, which means that each CTSS should have 2 or more tag counts in all the samples prior to clustering so as to exclude low fidelity CTSSs. 
 <br>
 Finally, no TC are to be called comprised of a single CTSS if the normalized signal is below 5:
 ```{r, message = FALSE}
@@ -174,24 +185,23 @@ Have a look again at the myCAGEset! The Tag cluster information slot has now bee
 <br>
 
 ### Promoter width
-Another feature we can determine is the promoter width. That is in this case, the width of each tag cluster per sample. _CAGEr_ has a function that calculates the TC width based on the cumulative distribution of tag signal per TC. 
+Another feature we can determine with _CAGEr_ is the promoter width. That is in this case, the width of each tag cluster per sample. _CAGEr_ has a function that calculates the TC width based on the cumulative distribution of tag signal per TC. See the figure below.
 ![cumulative promoter](../images/PromoterWidth.png)
 <br>
 
-Generally, the width of a (promoter) TC is set between the quantiles 0.1 and 0.9 to capture 80% of CTSS within the TC. To determine the width we follow two steps:
+Generally, the width of a TC (promoter) is set between the quantiles 0.1 and 0.9 to capture 80% of CTSS within the TC. To determine the width we follow these two steps:
 
   1. Calculate the cumulative distribution per TC (`cumulativeCTSSdistribution()`)
   2. Determine the quantile positions for each TC (`quantilePositions()`) 
 
 
 ```{r, message = FALSE}
-# calculate cumlative CTSS distribution:
 cumulativeCTSSdistribution(myCAGEset, clusters = "tagClusters")
-# determine quantile positions:
 quantilePositions(myCAGEset, 
                   clusters = "tagClusters", 
                   qLow = 0.1, 
                   qUp = 0.9)
+
 ```
 <br>
 We can easily plot a histogram of the interquantile widths per sample with _CAGEr_ too:
@@ -202,10 +212,11 @@ plotInterquantileWidth(myCAGEset,
                        qLow = 0.1, 
                        qUp = 0.9)
 ```
-If you look at these two plots, you can see that on avarage the 512 cell stage has more narrow TCs than prim6 (which is what we would expect). 
+If you look at these two plots, you can see that on avarage, the 512 cell stage has more narrow TCs than prim6 (which is what we would expect). This is great to see general differences in promoter width between samples.
+<br>
 
 ### Consensus Clusters
-Until now, we have determined the TC and the width of those per individual sample. However, TCs are often sample-specific. This could mean that they are present in one sample but not in the other. More so, TCs do not coincide perfectly within the same region but overlap. Additionally, there could be more than one TC in one sample and a less amount of TC in the other but larger in width. <br> 
+Until now, we have determined the TC and the width of those per individual sample. However, TCs are often sample-specific. This could mean that they are present in one sample but not in the other. More so, TCs do not coincide perfectly within the same region but overlap each other as well as the possibility of more than one TC in one sample and a less amount of TC in the other but larger in width (we'll visualize an example of this later today). <br> 
 When we want to compare transcriptional activity across samples, regions that encompass the TCs across the samples are needed. These are called ___consensus clusters___ that are aggregates of TCs from all samples. _CAGEr_ has a function for this too: `aggregateTagClusters()`. 
 <br> <br>
 These we will use and extract these later during the workshop. For now we will add these to our myCAGEset. We specify that the maximum distance is a 100 bp between the TCs (with the coordinates of quantile 0.1 and quantile 0.9) across the samples.
@@ -218,7 +229,7 @@ aggregateTagClusters(myCAGEset,
                      qUp = 0.9, 
                      maxDist = 100)
 ```
-
+<br>
 
 ### Expression - Self organising maps
 CAGE signals are essentially measuring transcription starting from CTSS and thus the transcription levels can be assessed. This can be done per CTSSs, TCs, or consensus clusters. <br>
@@ -243,20 +254,26 @@ getExpressionProfiles(myCAGEset,
 What happens if you change the tpmThreshold? Or change the xDim and yDim?
 
 <br><br>
-These results can be plotted by the following:
+These results can be plotted:
 ```{r}
 plotExpressionProfiles(myCAGEset, what = "consensusClusters")
+```
+![SOM](../images/expression_profiles.png)
+
+Subsequently, a character vector of the expression classes can be extracted from the cageset. This will be the same order as the consensus clusters.
+```{r}
+expr.clus = expressionClasses(myCAGEset, what = "consensusClusters")
 ```
 
 <br>
 
 ### Promoter shifting
-Promoter shifting is described by Haberle _et al_ in 2014. They've shown that the same promoter can be used differently in samples at different times in development. The method from this paper has been implemented in _CAGEr_. Shifting can be detected between two individual samples. If there are more than two samples, they can be merged per group (if possible) and the two groups are then compared. 
+Promoter shifting is described by Haberle _et al_, 2014. They've shown that the same promoter can be used differently in samples at different times in development. The method from this paper has been implemented in _CAGEr_. Shifting can be detected between two individual samples. If there are more than two samples, they can be merged per group (if possible) and the two groups are then compared. 
 <br>
 <br>
 The shifting uses, similary to determining promoter width, the cumulative distribution per sample of CAGE signal (here: within the consensus clusters). The difference between the cumulative distributions is calculated as a _shifting score_ (see figure below). Additionally, a Kolmogorov-Smirnov test on the cumulative distributions is performed to give a general assessment of differential TSS usage.
 
-<img src="../images/shiftingScore.png" width="450">
+<img src="../images/shiftingScore.png" width="550">
 <br>
  
 We will start by determing the cumulative distributions along all consensus clusters:
@@ -311,7 +328,7 @@ As the CAGEset object nicely stores all the information, we can easily save the 
 ```{r}
 save(myCAGEset, file ="../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
 ```
-## 1.4 Empty R
+## 1.4 Empty R environment
 ```{r}
 rm(list = ls())
 ```
@@ -319,3 +336,16 @@ rm(list = ls())
 
 
 # References
+Balwierz PJ, Carninci P, Daub CO, et al. Methods for analyzing deep sequencing expression data: constructing the human and mouse promoterome with deepCAGE data. Genome Biology. 2009;10(7):R79. doi:10.1186/gb-2009-10-7-r79.
+
+Haberle V, Li N, Hadzhiev Y, et al. Two independent transcription initiation codes overlap on vertebrate core promoters. Nature. 2014;507(7492):381-385. doi:10.1038/nature12974.
+
+Haberle V, Forrest ARR, Hayashizaki Y, Carninci P, Lenhard B. CAGEr: precise TSS data retrieval and high-resolution promoterome mining for integrative analyses. Nucleic Acids Research. 2015;43(8):e51. doi:10.1093/nar/gkv054.
+
+Nepal C, Hadzhiev Y, Previti C, et al. Dynamic regulation of the transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research. 2013;23(11):1938-1950. doi:10.1101/gr.153692.112.
+
+# Session Info
+```{r, echo=FALSE}
+sessionInfo()
+```
+

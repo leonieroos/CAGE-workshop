@@ -1,0 +1,547 @@
+---
+title: "3. Exploring CAGE Data within R"
+output:
+  html_notebook: default
+  df_print: paged
+---
+<br>
+In this practical we will explore the data of our two samples within the R environment outside the _CAGEr_ functions we have performed earlier. Normally, some of these you would do during your analysis pipeline to check the data throughout. To this end, we show how to extract CAGE signals from the _CAGEr_ package that are convenient for downstream analyses. We will look at different promoter types, annotation of tag clusters (TCs), and visualization with heatmaps.
+
+
+## Summary and goals of this practical
+<br>
+_CAGEr_ 
+
+* Prepare the right data formats 
+
+_General R environment_
+
+* Annotation 
+* Promoter types
+
+_Heatmaps_ (R package)
+
+* Oligonucleotide heatmaps
+
+## Data used this tutorial
+
+Let's load in our CAGEset made of two samples:
+```{r, message = FALSE, error=FALSE}
+require(CAGEr)
+load("../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
+```
+<br> <br>
+Which samples were in our object again? Use `sampleLabels(myCAGEset)` and assign just the sample labels to `samples`.
+```{r}
+samples <- unname(sampleLabels(myCAGEset))
+samples
+```
+
+# 3.1 Use _CAGEr_ to extract data from CAGEset object
+_CAGEr_ has multiple functions to easily extract information; from CTSSs to consensus clusters. We'll go quickly through these below.
+
+## 3.1.1 CTSS - CAGE tag count for TSSs
+<br>
+
+#### Raw CTSS signals
+The number of CAGE tags supporting each TSS can be extracted with `CTSStagCount()` and result in a dataframe of all samples in the object. Use this function on our cageset. What is the range of count in zf_prim6? How many CTSSs have been detected in total?
+```{r}
+ctss <- CTSStagCount(myCAGEset)
+head(ctss)
+range(ctss$zf_prim6)
+nrow(ctss) # total unique CTSSs
+```
+<br>
+
+#### Normalized CTSS signals
+`CTSSnormalizedTpm()` returns as the name implies the normalized CAGE signal for all detected TSSs of our cageset.
+
+```{r}
+ctss.n <- CTSSnormalizedTpm(myCAGEset)
+head(ctss.n)
+nrow(ctss.n)
+```
+
+
+## 3.1.2 TCs - CAGE tag clusters 
+<br>
+
+#### Per single sample
+`tagClusters()` can extract our previously produced TCs for one CAGE experiment from a CAGEset object. Look at `?tagClusters` in the viewer. You can see that we can also extract the interquantile widths at the same time so let's do that. How many TCs are there in zf_512cells?
+
+```{r}
+i = samples[1] # zf_512cells
+tc <- tagClusters(myCAGEset, 
+                  sample = i, 
+                  returnInterquantileWidth = TRUE,
+                  qLow = 0.1, 
+                  qUp = 0.9)
+head(tc)
+nrow(tc)
+```
+<br>
+
+#### For all samples in an object
+Let's make things easier downstream and avoid mistakes repeating code. We can easily make a list that contains per sample their TCs:
+
+```{r}
+tc.list <- list()  
+for ( i in samples ) {
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+
+  tc.list[[i]] <- tc
+}
+```
+
+Now, the samples will each have a dataframe in this list that is labeled according to their sample label; `str(tc.list)`.
+
+## 3.1.3 Consensus clusters
+_CAGEr_ has two functions extracting information of consensus clusters. One for the information of consensus clusters and one for the matrix with normalized CAGE tag values for consensus clusters across all samples. We'll start by extracting the information first with `consensusClusters()`.
+
+
+```{r}
+cc <- consensusClusters(myCAGEset, 
+                        sample = NULL ) # gives the sum of tpm of all samples in object
+```
+
+Next, we'll use `consensusClustersTpm()` to extract the sum of tpm per sample in those consensus clusters 
+```{r}
+cc.tpm <- consensusClustersTpm(myCAGEset)
+```
+
+We can combine the two to keep the coordinates of the consensusclusters and tpm together. Both are in the same order!
+
+```{r}
+cc.total <- cbind(cc[,-1], cc.tpm)
+head(cc.total)
+```
+
+
+## 3.1.4 Clean up your environment 
+Except `myCAGEset` and `samples`
+
+```{r}
+rm( list = ls()[!ls() %in% c("myCAGEset", "samples")])
+```
+<br>
+
+# 3.2 Annotation of genomic features
+The majority of CAGE data is expected to fall within known promoters and near known TSSs due to the nature of the method. Nepal _et al_., 2013, already showed for all of the 12 developmental samples that the majority falls at the 5'end (500 bp upstream the first exon). Let's see this ourselves for our two samples. For this, we need the TCs from each sample and also the known annotations of the zebrafish genome. We will do this in stages. Let's first export the TCs and normalized tag per million for the samples and store into a GRanges object in a list.
+
+<br> <br>
+
+We will use `tagClusters()` to extract for the TCs as we have done above. However, instead of add these directly to the list we will store these as GRanges objects.
+<br>
+For the GRanges we will use the interquantile width as start and end. In addition, we add the extra information of the tc.
+
+```{r, message = FALSE, error=FALSE}
+# packages
+require(BSgenome.Drerio.UCSC.danRer7)
+require(GenomicRanges)
+require(GenomicFeatures)
+
+# GRanges
+tc.gr.list <- list()  
+for ( i in samples ) {
+  
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  
+  tc.gr <- GRanges(seqnames = tc$chr,
+                 ranges = IRanges(start = tc$q_0.1, end = tc$q_0.9),
+                 strand = tc$strand,
+                 seqlengths = seqlengths(Drerio))
+  
+  values(tc.gr) <- cbind(values(tc.gr),tc[,6:9])
+  
+  tc.gr.list[[i]] <- tc.gr
+}
+```
+
+
+Next, we want to extract the information of known promoters (500 bp upstream), genes, introns, and exons from the right zebrafish build. We want to use Ensembl and not RefGene in a TxDb. The TxDb was created with the code below and _can be found in the provided data directory_ (do not run today). 
+
+
+```{r, eval = FALSE}
+# dan rerio v7
+require(AnnotationDbi)
+txdb <- makeTxDbFromUCSC("danRer7", "ensGene")
+saveDb(txdb, file = "../Data/provided/txdb_DanRer7.sqlite")
+```
+
+We define similar features to (carnici et al):
+```{r, message=FALSE,warning=FALSE}
+# load txdb
+txdb <- loadDb("../Data/provided/txdb_DanRer7.sqlite")
+
+### gene features
+# 5' UTR (500bp window around refgene TSS)
+promoters <- trim(promoters(txdb, upstream=500, downstream=500))
+# 5 kb upstream - 500bp 
+upstream <- trim(flank(promoters, 5000))
+# exons
+exons <- exons(txdb)
+# introns
+introns <- intronsByTranscript(txdb)
+# genes
+gene <- genes(txdb)
+```
+
+We want to overlap our TCs per sample for each feature and count the occurances per sample:
+
+* promoter
+* 5kb upstream of promoter
+* exons
+* introns
+* gene
+
+Now we know that a region in the genome can overlap multiple genomic features and we want for now a single feature per TC. Accordingly, each feature is overlapped with our TCs using `subsetByOverlaps()` and concatenated. Subsequently the dataframe will be aggregated to one row per TC and the feature is selected based on priority as listed above.
+<br>
+
+We Let's design a function for ease of use that uses a GRanges as variable:
+
+```{r}
+GeneFeatfun <- function(x){ 
+  ## create identifyer for x
+  x$tag.id <- paste("tagid_",1:length(x))
+  
+  ## subset for each feature and concatenate
+  # gene
+  df <- as.data.frame(subsetByOverlaps(x, gene)); df$feat = "gene"
+  all <- df
+  # prom 
+  df <- as.data.frame(subsetByOverlaps(x, promoters)); df$feat = "promoter"
+  all <- rbind(all, df)
+  # 5 kb upstream
+  df <- as.data.frame(subsetByOverlaps(x, upstream)); df$feat = "upstream"
+  all <- rbind(all, df)
+  # exons
+  df <- as.data.frame(subsetByOverlaps(x, exons)); df$feat = "exon"
+  all <- rbind(all, df)
+  # introns
+  df <- as.data.frame(subsetByOverlaps(x, introns)); df$feat = "intron"
+  all <- rbind(all, df)
+  
+  ## collapse to one per tagid but keep multiple Features:
+  group <- aggregate(all[, "feat"], by = list(all$tag.id), paste, collapse = ";")
+  feat_all <- group$x
+  
+  ## give priority to associate one genomic feature per tag.id 
+  group$x[grep("promoter", group$x)] = "promoter" 
+  group$x[grep("upstream", group$x)] = "upstream" 
+  group$x[grep("exon", group$x)] = "exon" 
+  group$x[grep("intron", group$x)] = "intron" 
+  group$y <- feat_all
+  colnames(group)[2:3] <- c("feat_single", "feat_all")
+  
+  ## merge to x to get all the original data
+  y <- merge(x, group, by.x = "tag.id", by.y = "Group.1", all.x = TRUE)
+  y$feat_single[which(is.na(y$feat_single))] = "intergenic"
+  return(y)
+}
+
+```
+> Note that this function works on all GRanges objects, so if you want to check individual CTSSs or consensus clusters you can use this too!
+
+Let's run this function over our list and see the top 5 lines of zf_512cells. What are the numbers by categories?
+```{r}
+tc.gfeat <- lapply(tc.gr.list, GeneFeatfun)
+head(tc.gfeat$zf_512cells)
+table(tc.gfeat$zf_512cells$feat_single)
+```
+
+
+Let's plot histograms for zf_512cells:
+```{r}
+# package
+require(ggplot2)
+
+tab <- data.frame(table(tc.gfeat$zf_512cells$feat_single))
+tab$perc <- (tab$Freq/sum(tab$Freq))*100
+tab$Var1 = factor(x = tab$Var1, levels = c("upstream","promoter","exon","intron","gene","intergenic"))
+  
+ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) + 
+  geom_bar(stat = "identity", position = position_dodge(),fill = "forestgreen") + 
+  xlab("Gene Feature") + ylab("TC") + ggtitle("Genomic Features") + 
+  scale_alpha_discrete(range = c(1, 0.3)) +
+  theme(text = element_text(size=16), panel.background=element_rect(fill = "white", colour = "black"), 
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+All good, this is very similar to previously reported for these samples!
+<br>
+
+# 3.3 Promoter shapes 
+There are different types of promoters depending on the width of CTSSs. Here,we'll focuss on just sharp (or peaked) and broad promoters (Carninci _et al._, 2006). We'll start by assessing the promoter interquantile widths again, but now outside _CAGEr_ to see the distribution in our two samples. Then we'll determine sharp and broad promoters based in the interquantile widths and assess differences on average in oligonucleotide profiles.
+<br> <br>
+
+#### Promoter interquantile widths
+One thing you might want to do is a density plot of the interquantile widths for both samples (or more if available). For, this we'll use the TCs to plot in a overlay density plot using `ggplot2`. The threshold will be set at >= 5 tpm for a TC to be included.
+
+```{r}
+tc.list <- list()  
+for ( i in samples ) {
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  tc.list[[i]] <- tc[tc$tpm >= 5,] # threshold
+}
+
+plot.tc <- NULL
+for(i in 1:length(samples)){
+  a <- tc.list[[i]][,c("tpm","interquantile_width")]
+  a$group <- samples[i]
+  plot.tc <- rbind(plot.tc,a)
+}
+
+# density
+print( ggplot(plot.tc, aes(x = interquantile_width, fill = group)) + 
+         geom_density(alpha=0.5) + 
+         theme_bw() + 
+         scale_fill_brewer(palette = "Set1") + # only change if samples exceed colours 
+         ggtitle("Density overlay width TC") +
+         coord_cartesian(xlim = c(0,100)) # only display these coordinates but won't affect data distribution
+       )
+
+```
+
+
+## 3.3.1 Sharp and broad promoters - average oligonucleotide profiles
+
+We can plot the average oligonucleotide profiles of sharp and broad promoters with an R package called [seqPattern](http://bioconductor.org/packages/release/bioc/html/seqPattern.html). We need the following for this:
+
+* The genomic position of dominant TSS of each TC in GRanges 
+* Add 200 bp up and downstream of TSS as start and end
+* Determine sharp and broad TCs on interquantile widths
+* Plot by using `plotPatternOccurrenceAverage()`
+
+Let's make a list again first but now with the start and end as dominant TSS position:
+```{r, message=FALSE}
+# packages
+require(seqPattern)
+require(BSgenome.Drerio.UCSC.danRer7)
+
+# make list with GRanges with start and end at dominant CTSS position
+tc.gr.domTss.list <- list()  
+for ( i in samples ) {
+  
+  tc <- tagClusters(myCAGEset, 
+                    sample = i, 
+                    returnInterquantileWidth = TRUE, 
+                    qLow = 0.1, 
+                    qUp = 0.9)  
+  
+  tc.gr <- GRanges(seqnames = tc$chr,
+                 ranges = IRanges(start = tc$dominant_ctss, end = tc$dominant_ctss),
+                 strand = tc$strand,
+                 seqlengths = seqlengths(Drerio))
+  
+  values(tc.gr) <- cbind(values(tc.gr),tc[,c(8,12)])
+  
+  tc.gr.domTss.list[[i]] <- tc.gr
+}
+```
+
+We'll only focus here on `zf_512cells`, thus select this from our list and increase the start and end 200 bp up and downstream, respectively.
+
+```{r, message = FALSE}
+i <- samples[1]
+up <- 200
+down <- 200
+win <- up + down
+flanking <- promoters(tc.gr.domTss.list[[i]], upstream = up,downstream = down)
+```
+In other cases with larger windows there might be a warning that there is a out-of-bound range! Why is that? Below is how to remove that when this happens:
+
+```{r}
+flanking <- flanking[width(trim(flanking)) == win] # win is the window of start and end
+```
+
+Now attach the sequences:
+```{r}
+zfseq <- getSeq(Drerio, flanking) # from BSgenome.Drerio.UCSC.danRer7
+```
+
+Determine the indeces for sharp and broad promoters based on the interquantile widths:
+
+- sharp < 10 
+- broad >= 10
+
+```{r}
+# make index of sharp and broad promoters
+sIdx <- flanking$interquantile_width < 10
+bIdx <- flanking$interquantile_width >= 10
+```
+
+Plot the average dinucleotide profile for `WW` and `SS` for sharp and broad promoters seperately (if this takes too long, skip this)
+```{r, message = FALSE}
+par(mfrow = c(1,2), mar = c(4.5,4,1,1))
+# sharp
+plotPatternOccurrenceAverage(regionsSeq = zfseq[sIdx], 
+                             patterns = c("WW", "SS"), 
+                             flankUp = up, 
+                             flankDown = down,
+                             smoothingWindow = 3, 
+                             color = c("red3", "blue3"), 
+                             cex.axis = 0.9 )
+
+# broad
+plotPatternOccurrenceAverage(regionsSeq = zfseq[bIdx],
+                             patterns = c("WW", "SS"), 
+                             flankUp = up, 
+                             flankDown = down,
+                             smoothingWindow = 3, 
+                             color = c("red3", "blue3"), 
+                             cex.axis = 0.9 )
+```
+
+<br>
+
+## 3.3.2 Sharp and broad promoters - average motif occurrence profile
+Instead of the dinucleotides above, we can plot also the averge motif occurrence for sharp and broad promoters. The obvious one being the TATA-box motif. _seqPattern_ already has the position-weight matrix (PWM) in its package that can be extracted with `data(TBPpwm)`. Have a look at this:
+
+```{r}
+data(TBPpwm)
+TBPpwm
+```
+
+And plot this for both for > 90% match to PWM:
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+plotMotifOccurrenceAverage(regionsSeq = zfseq[sIdx], 
+                           motifPWM = TBPpwm, 
+                           minScore = "90%", 
+                           flankUp = up, 
+                           flankDown = down,
+                           smoothingWindow = 3, 
+                           color = c("red3"), 
+                           cex.axis = 0.9 )
+
+plotMotifOccurrenceAverage(regionsSeq = zfseq[bIdx], 
+                           motifPWM = TBPpwm, 
+                           minScore = "90%", 
+                           flankUp = up, 
+                           flankDown = down,
+                           smoothingWindow = 3, 
+                           color = c("blue3"), add = TRUE )
+                           
+
+legend("topright", 
+       legend = c("sharp", "broad"), 
+       col = c("red3", "blue3"),
+       bty = "n", 
+       lwd = 1 )
+
+```
+
+
+Sharp promoters have a higher occurence for a TATA-box motif!
+
+<br>
+
+# 3.5 Heatmaps
+Lastly, we can visualize the sequence surrounding the dominant CTSS using density heatmaps. To this end, we'll use the package [heatmaps](https://github.com/mgperry/heatmaps). We need similar data to described in 3.3.1 and 3.3.2 but we can extend the window to 400 up and downstream:
+
+* The genomic position of dominant TSS of each TC in GRanges 
+* Add 400 bp up and downstream of TSS as start and end
+* Attach the sequence 400 up and downstream of the site
+* Determine the order with interquantile widths
+* Plot heatmap
+
+Let's do the first three step in one go:
+```{r, message =FALSE}
+# packages
+require(heatmaps)
+require(BSgenome.Drerio.UCSC.danRer7)
+
+i <- samples[1]
+up <- 400
+down <- 400
+win <- up + down
+
+flanking <- promoters(tc.gr.domTss.list[[i]], upstream = up,downstream = down)
+flanking <- flanking[width(trim(flanking)) == win] # win is the window of start and end
+
+zfseq <- getSeq(Drerio, flanking) # from BSgenome.Drerio.UCSC.danRe
+```
+
+Order the sequences in this case for interquantile width:
+
+```{r}
+t = order(flanking$interquantile_width) # the order
+fa = zfseq[t] # zf sequences reordered
+```
+
+Now the heatmap. We need to specifiy some settings first such as the smoothing and set the coordinates 
+```{r}
+SmoothPatternHM = function(seq, pattern, ...) {
+    hm = PatternHeatmap(seq, pattern, ...)
+    smooth(hm, output.size=c(500, 1000),sigma=c(10,5))
+}
+
+
+coords = c(-400,400) # coordinates window
+
+hm_list = list(
+    ta=SmoothPatternHM(fa, "TA", coords=coords),
+    cg=SmoothPatternHM(fa, "CG", coords=coords),
+    ww=SmoothPatternHM(fa, "WW", coords=coords),
+    ss=SmoothPatternHM(fa, "SS", coords=coords)
+)
+
+
+```
+
+
+```{r}
+upperOpts = heatmapOptions(
+              label.col="black",
+              x.ticks=FALSE )
+
+lowerOpts = heatmapOptions(
+    cex.axis=1.5 )
+
+par(mfrow=c(1,2))
+plotHeatmap(hm_list$ta, options=upperOpts)
+plotHeatmap(hm_list$cg, options=upperOpts)
+plotHeatmap(hm_list$ww, options=lowerOpts)
+plotHeatmap(hm_list$ss, options=lowerOpts)
+mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
+
+```
+
+
+
+
+These heatmaps will change if you change how you order these. So for example, you can also order by the distance of dom TSS of zf_512cells to dom TSS of zf_prim6. Instead of the WW straight down in you will see this is not the case for zf_prim6 (see the figure in Haberle _et al._ 2014). How would you go about that?
+
+
+
+# 3.6 Empty R environment
+```{r}
+rm(list = ls())
+```
+
+
+
+# References
+
+Carninci P, et al. Genome-wide analysis of mammalian promoter architecture and evolution. Nature Genetics. 2006;38:626–635. doi:.10.1038/ng1789
+
+Haberle V, Li N, Hadzhiev Y, et al. Two independent transcription initiation codes overlap on vertebrate core promoters. Nature. 2014;507(7492):381-385. doi:10.1038/nature12974.
+
+Nepal C, Hadzhiev Y, Previti C, et al. Dynamic regulation of the transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research. 2013;23(11):1938-1950. doi:10.1101/gr.153692.112.
+
+# Session Info
+```{r, echo=FALSE}
+sessionInfo()
+```

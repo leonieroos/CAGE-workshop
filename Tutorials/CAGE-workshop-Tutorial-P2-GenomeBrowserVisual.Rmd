@@ -1,0 +1,152 @@
+---
+title: "2. Visualization in Genome Browser (UCSC)"
+output:
+  html_notebook: default
+  df_print: paged
+
+---
+<br>
+In the previous practical we went through all the functions and saved our complete myCAGEset with all the analysis slots. In this (short) part, we will export data from this object for use in downstream quality control, manipulation, and visualization. 
+
+## Summary and goals of this practical
+<br>
+_CAGEr Export_
+
+* CTSS as bedGraph in genome browser
+* Promoter width as bed file and visualize  this in genome browser
+
+## 2.1 Loading in myCAGE object
+Let's not forget the packages for good practice:
+
+```{r, message = FALSE}
+require(CAGEr)
+load("../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
+```
+Everything still in the slots and do we have the right samples? What is the genome build?
+```{r, eval=FALSE}
+myCAGEset
+```
+
+
+## 2.2 CTSS visualization in genome browser
+<br>
+
+#### Make a bedgraph file
+_CAGEr_ can create bedGraph files with tracks of CAGE signal. It will give you two sets of tracks _per sample_: one of the plus strand and one for the minus strand. The function is `exportCTSStoBedGraph()` where we can specify if we want the normalized or raw tag counts. 
+It needs:
+
+* `object` 
+* `values` - "raw" or "normalized"
+* `format` - "BigWig" or "bedGraph"
+* `oneFile` - TRUE or FALSE to be exported in the same file (for bedGraph) 
+
+Let's export then the normalized tag counts for both our samples in one file:
+
+```{r, message=FALSE}
+exportCTSStoBedGraph(myCAGEset,
+                     values = "normalized",
+                     format = "bedGraph",
+                     oneFile = TRUE)
+```
+
+This is one file with each of the samples concatenated. Each will start with the `track name=` line for the genome browser, followed by the bed coordinates and the normalized tag count values for the height of the bar. 
+
+<br> 
+
+#### View in UCSC Genome browser as custom track
+We will all look at the same location first. Please open the bedGraph file in a text editor of your choice and add a few lines (copy from below).
+
+Top of the file: 
+`browser position chr21:5819775-5819875` followed by a line break. This will specify the 100 bp postiion on chromosome 21.
+
+At the end of each trackname the following in this order. This will specify that the values should always start at zero, the data should be autoscaled, and the colour for easy viewing.
+
+`alwaysZero=on autoScale=on color=19,4,142` <br>
+`alwaysZero=on autoScale=on color=19,4,142` <br>
+`alwaysZero=on autoScale=on color=144,12,63` <br>
+`alwaysZero=on autoScale=on color=144,12,63` <br>
+
+Example, for the first track name visible in the file it should now look like this:
+
+```{bash, eval=FALSE}
+browser position chr21:5819775-5819875
+track name=zf_512cells_normalized_plus description="zf_512cells CTSS normalized (plus strand)" visibility=full type=bedGraph alwaysZero=on autoScale=on color=19,4,142
+chr1	16925	16926	0.166938978924912
+chr1	50283	50284	0.166938978924912
+```
+
+Now go to the [UCSC Genome Browser](https://genome-euro.ucsc.edu/cgi-bin/hgGateway?hgsid=219628298_r8sDT3ZkB2VZLV4luoG9P7zr0hnc). <br>
+
+- Select our genome build,  __Jul. 2010 (Zv9/danRer7)__, and click _GO_
+- At the blue tabs bar; go to _MyData_ and select _Custom Tracks_
+- Click _add custom tracks_
+- In the first box choose your file with the _Browse_ button
+- Click on _submit_
+- Click on _go_ and view in genome browser
+
+Great! We now are looking at a region in chr21 and should look like shown below. On which strand do we see the signals?
+
+![Genome browser picture](../images/ucsc_capture_2Samples.png)
+
+> Please note that because we set it to autoscale, the bars of both samples may seem evenly expressed but that is not true. The sample in blue goes up to value 10.3 whilst the sample in red to 31.2. To give a better picture of what's happening here, you can set both to ___vertical viewing range___ and choose a ___max value___ (here maybe 35). 
+
+<br>
+
+### 2.3 Promoter width visualization in genome browser
+<br> 
+
+#### Make the bed file
+The interquantile width per TC that we determined earlier (between 0.1 and 0.9) can also be visualized in the genome browser as a gene-like representation. For this, we are exporting it in a bed file format by using `exportToBed()`
+
+
+```{r, message = FALSE}
+exportToBed(object = myCAGEset, 
+            what = "tagClusters",
+            qLow = 0.1, 
+            qUp = 0.9, 
+            oneFile = TRUE)
+```
+
+<br>
+
+#### View in UCSC Genome browser as custom track
+Similar to above, we will all look at the same location again. Please open the bed file in a text editor of your choice and add the few lines (copy from below).
+
+Top of the file: 
+`browser position chr21:5819775-5819875` followed by a line break. This will specify the 100 bp postiion on chromosome 21.
+
+At the end of each trackname the following in this order. This will colour the samples in the same colours.
+
+`alwaysZero=on autoScale=on color=19,4,142` <br>
+`alwaysZero=on autoScale=on color=144,12,63` <br>
+
+
+Now revisit the [UCSC Genome Browser](https://genome-euro.ucsc.edu/cgi-bin/hgGateway?hgsid=219628298_r8sDT3ZkB2VZLV4luoG9P7zr0hnc). <br>
+
+- At the blue tabs bar; go to _MyData_ and select _Custom Tracks_
+- Click _add custom tracks_
+- In the first box choose your file with the _Browse_ button
+- Click on _submit_
+- Click on _go_ and view in genome browser
+
+As you can see from the custom tracks, the pevious bedGraphs are still there and we have added the TC widths for each samples. 
+
+![Genome browser picture TCs added](../images/ucsc_capture_TCwidth.png)
+
+> The bars are adjusted to a max value of 35 for the CTSS. Can you see the difference?
+
+<br>
+
+#### A note on consensus clusters
+The genome browser picture showing both the TCs and CTSSs highlights something to keep in mind about consensus clusters. The distribution of CTSS that form the TC in prim6 overlap two seperate TCs in the 512 cell stage.
+
+# 2.4 Empty R environment
+```{r}
+rm(list = ls() )
+```
+
+
+# Session Info
+```{r, echo=FALSE}
+sessionInfo()
+```

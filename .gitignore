@@ -1,7 +1,7 @@
 Data/*
 images/*
-Solutions/*.html
-Solutions/*.png
-Solutions/*.pdf
-Solutions/*.bed*
-Solutions/*.Rhistory
+*/*.html
+*/*.png
+*/*.pdf
+*/*.bed*
+*/*.Rhistory

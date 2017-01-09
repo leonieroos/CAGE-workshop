@@ -24,13 +24,12 @@ _General R environment_
 
 _Heatmaps_ (R package)
 
-* Dinucleotide heatmaps
-* Motif (pwm) heatmaps
+* Oligonucleotide heatmaps
 
 ## Data used this tutorial
 
 Let's load in our CAGEset made of two samples:
-```{r, message = FALSE}
+```{r, message = FALSE, error=FALSE}
 require(CAGEr)
 load("../Data/intermediate/CAGEobject_twoSamples_PowNom_allSlots.RData")
 ```
@@ -142,7 +141,7 @@ We will use `tagClusters()` to extract for the TCs as we have done above. Howeve
 <br>
 For the GRanges we will use the interquantile width as start and end. In addition, we add the extra information of the tc.
 
-```{r, message = FALSE}
+```{r, message = FALSE, error=FALSE}
 # packages
 require(BSgenome.Drerio.UCSC.danRer7)
 require(GenomicRanges)
@@ -256,7 +255,7 @@ GeneFeatfun <- function(x){
 
 Let's run this function over our list and see the top 5 lines of zf_512cells. What are the numbers by categories?
 ```{r}
-tc.gfeat <- lapply(tc.list, GeneFeatfun)
+tc.gfeat <- lapply(tc.gr.list, GeneFeatfun)
 head(tc.gfeat$zf_512cells)
 table(tc.gfeat$zf_512cells$feat_single)
 ```
@@ -283,12 +282,12 @@ ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) +
 All good, this is very similar to previously reported for these samples!
 <br>
 
-# 3.3 Promoter types and peaks
-There are different types of promoters depending on the : sharp, broad, bla, and blah. Here, we are going to distinguish sharp and broad promoters and use these for the next section as well. Carninci _et al._, 2006.  
-
+# 3.3 Promoter shapes 
+There are different types of promoters depending on the width of CTSSs. Here,we'll focuss on just sharp (or peaked) and broad promoters (Carninci _et al._, 2006). We'll start by assessing the promoter interquantile widths again, but now outside _CAGEr_ to see the distribution in our two samples. Then we'll determine sharp and broad promoters based in the interquantile widths and assess differences on average in oligonucleotide profiles.
+<br> <br>
 
 #### Promoter interquantile widths
-The first thing you want to do might be a density plot of the interquantile widths for both samples. For, this we'll use the TCs to plot in a overlay density plot using `ggplot2`. The threshold will be set at >= 5 tpm for the TC to be included.
+One thing you might want to do is a density plot of the interquantile widths for both samples (or more if available). For, this we'll use the TCs to plot in a overlay density plot using `ggplot2`. The threshold will be set at >= 5 tpm for a TC to be included.
 
 ```{r}
 tc.list <- list()  
@@ -309,37 +308,30 @@ for(i in 1:length(samples)){
 }
 
 # density
-print( ggplot(plot.tc, aes(x = interquantile_width, fill = group)) + geom_density(alpha=0.5) + theme_bw() + 
-         scale_fill_brewer(palette = "Set1") + ggtitle("Density overlay width TC") +
-         coord_cartesian(xlim = c(0,100)) )
+print( ggplot(plot.tc, aes(x = interquantile_width, fill = group)) + 
+         geom_density(alpha=0.5) + 
+         theme_bw() + 
+         scale_fill_brewer(palette = "Set1") + # only change if samples exceed colours 
+         ggtitle("Density overlay width TC") +
+         coord_cartesian(xlim = c(0,100)) # only display these coordinates but won't affect data distribution
+       )
 
 ```
 
 
-#### Sharp and broad promoters
+## 3.3.1 Sharp and broad promoters - average oligonucleotide profiles
 
-```{r}
-require(seqPattern)
+We can plot the average oligonucleotide profiles of sharp and broad promoters with an R package called [seqPattern](http://bioconductor.org/packages/release/bioc/html/seqPattern.html). We need the following for this:
 
-```
+* The genomic position of dominant TSS of each TC in GRanges 
+* Add 200 bp up and downstream of TSS as start and end
+* Determine sharp and broad TCs on interquantile widths
+* Plot by using `plotPatternOccurrenceAverage()`
 
-
-
-
-
-# 3.5 Heatmaps
-Lastly, we can visualize the sequence surrounding the dominant CTSS using heatmaps. To this end, we'll use the package _heatmaps_. We need the following for this:
-
-* The genomic position of dominant TSS of TCs
-* GRanges object 
-* Attach the sequence 400 up and downstream of the site
-* Determine the order with interquantile widths
-* Plot heatmap
-
-First the GRanges list with the dominant CTSS genomic position:
-```{r}
+Let's make a list again first but now with the start and end as dominant TSS position:
+```{r, message=FALSE}
 # packages
-require(heatmaps)
+require(seqPattern)
 require(BSgenome.Drerio.UCSC.danRer7)
 
 # make list with GRanges with start and end at dominant CTSS position
@@ -361,26 +353,128 @@ for ( i in samples ) {
   
   tc.gr.domTss.list[[i]] <- tc.gr
 }
-
 ```
 
+We'll only focus here on `zf_512cells`, thus select this from our list and increase the start and end 200 bp up and downstream, respectively.
 
-Specify the window of wich we want the sequences of zf_512cells
-```{r, message = FALSE, warning = FALSE}
-i = samples[1]
-flanking <- promoters(tc.gr.domTss.list[[i]], upstream = 400,downstream = 400)
+```{r, message = FALSE}
+i <- samples[1]
+up <- 200
+down <- 200
+win <- up + down
+flanking <- promoters(tc.gr.domTss.list[[i]], upstream = up,downstream = down)
 ```
-There is one region now out of the range of the chromosomes (specified by seqlenghts). Run the following
+In other cases with larger windows there might be a warning that there is a out-of-bound range! Why is that? Below is how to remove that when this happens:
+
 ```{r}
-idx <- GenomicRanges:::get_out_of_bound_index(flanking)
-
-if (length(idx) != 0L)
-    flanking <- flanking[-idx]
+flanking <- flanking[width(trim(flanking)) == win] # win is the window of start and end
 ```
 
 Now attach the sequences:
 ```{r}
-zfseq <- getSeq(Drerio, flanking)
+zfseq <- getSeq(Drerio, flanking) # from BSgenome.Drerio.UCSC.danRer7
+```
+
+Determine the indeces for sharp and broad promoters based on the interquantile widths:
+
+- sharp < 10 
+- broad >= 10
+
+```{r}
+# make index of sharp and broad promoters
+sIdx <- flanking$interquantile_width < 10
+bIdx <- flanking$interquantile_width >= 10
+```
+
+Plot the average dinucleotide profile for `WW` and `SS` for sharp and broad promoters seperately (if this takes too long, skip this)
+```{r, message = FALSE}
+par(mfrow = c(1,2), mar = c(4.5,4,1,1))
+# sharp
+plotPatternOccurrenceAverage(regionsSeq = zfseq[sIdx], 
+                             patterns = c("WW", "SS"), 
+                             flankUp = up, 
+                             flankDown = down,
+                             smoothingWindow = 3, 
+                             color = c("red3", "blue3"), 
+                             cex.axis = 0.9 )
+
+# broad
+plotPatternOccurrenceAverage(regionsSeq = zfseq[bIdx],
+                             patterns = c("WW", "SS"), 
+                             flankUp = up, 
+                             flankDown = down,
+                             smoothingWindow = 3, 
+                             color = c("red3", "blue3"), 
+                             cex.axis = 0.9 )
+```
+
+<br>
+
+## 3.3.2 Sharp and broad promoters - average motif occurrence profile
+Instead of the dinucleotides above, we can plot also the averge motif occurrence for sharp and broad promoters. The obvious one being the TATA-box motif. _seqPattern_ already has the position-weight matrix (PWM) in its package that can be extracted with `data(TBPpwm)`. Have a look at this:
+
+```{r}
+data(TBPpwm)
+TBPpwm
+```
+
+And plot this for both for > 90% match to PWM:
+```{r, message=FALSE, error=FALSE, warning=FALSE}
+plotMotifOccurrenceAverage(regionsSeq = zfseq[sIdx], 
+                           motifPWM = TBPpwm, 
+                           minScore = "90%", 
+                           flankUp = up, 
+                           flankDown = down,
+                           smoothingWindow = 3, 
+                           color = c("red3"), 
+                           cex.axis = 0.9 )
+
+plotMotifOccurrenceAverage(regionsSeq = zfseq[bIdx], 
+                           motifPWM = TBPpwm, 
+                           minScore = "90%", 
+                           flankUp = up, 
+                           flankDown = down,
+                           smoothingWindow = 3, 
+                           color = c("blue3"), add = TRUE )
+                           
+
+legend("topright", 
+       legend = c("sharp", "broad"), 
+       col = c("red3", "blue3"),
+       bty = "n", 
+       lwd = 1 )
+
+```
+
+
+Sharp promoters have a higher occurence for a TATA-box motif!
+
+<br>
+
+# 3.5 Heatmaps
+Lastly, we can visualize the sequence surrounding the dominant CTSS using density heatmaps. To this end, we'll use the package _heatmaps_. We need similar data to described in 3.3.1 and 3.3.2 but we can extend the window to 400 up and downstream:
+
+* The genomic position of dominant TSS of each TC in GRanges 
+* Add 400 bp up and downstream of TSS as start and end
+* Attach the sequence 400 up and downstream of the site
+* Determine the order with interquantile widths
+* Plot heatmap
+
+Let's do the first three step in one go:
+```{r, message =FALSE}
+# packages
+require(heatmaps)
+require(BSgenome.Drerio.UCSC.danRer7)
+
+i <- samples[1]
+up <- 400
+down <- 400
+win <- up + down
+
+flanking <- promoters(tc.gr.domTss.list[[i]], upstream = up,downstream = down)
+flanking <- flanking[width(trim(flanking)) == win] # win is the window of start and end
+
+zfseq <- getSeq(Drerio, flanking) # from BSgenome.Drerio.UCSC.danRe
 ```
 
 Order the sequences in this case for interquantile width:
@@ -394,7 +488,7 @@ Now the heatmap. We need to specifiy some settings first such as the smoothing a
 ```{r}
 SmoothPatternHM = function(seq, pattern, ...) {
     hm = PatternHeatmap(seq, pattern, ...)
-    smooth(hm, output.size=(250, 500))
+    smooth(hm, output.size=c(1600, 1500))
 }
 
 
@@ -406,15 +500,22 @@ hm_list = list(
     ww=SmoothPatternHM(fa, "WW", coords=coords),
     ss=SmoothPatternHM(fa, "SS", coords=coords)
 )
+
+
 ```
 
 
 ```{r}
+upperOpts = heatmapOptions(
+              label.col="white",
+              x.ticks=FALSE )
+
+lowerOpts = heatmapOptions(
+    cex.axis=1.5 )
+
 par(mfrow=c(1,2))
 plotHeatmap(hm_list$ta, options=upperOpts)
 plotHeatmap(hm_list$cg, options=upperOpts)
-
-
 plotHeatmap(hm_list$ww, options=lowerOpts)
 plotHeatmap(hm_list$ss, options=lowerOpts)
 mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
@@ -424,9 +525,14 @@ mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
 
 
 
+These heatmaps will change if you change how you order these. So for example, you can also order by the distance of dom TSS of zf_512cells to dom TSS of zf_prim6. Instead of the WW straight down in you will see this is not the case for zf_prim6 (see the figure in Haberle _et al._ 2014). How would you go about that?
 
 
 
+# 3.6 Empty R environment
+```{r}
+rm(list = ls())
+```
 
 
 
@@ -434,6 +540,7 @@ mtext("interquantile \nwidth", side=1, line=3, cex=1.2)
 
 Carninci P, et al. Genome-wide analysis of mammalian promoter architecture and evolution. Nature Genetics. 2006;38:626–635. doi:.10.1038/ng1789
 
+Haberle V, Li N, Hadzhiev Y, et al. Two independent transcription initiation codes overlap on vertebrate core promoters. Nature. 2014;507(7492):381-385. doi:10.1038/nature12974.
 
 Nepal C, Hadzhiev Y, Previti C, et al. Dynamic regulation of the transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research. 2013;23(11):1938-1950. doi:10.1101/gr.153692.112.
 

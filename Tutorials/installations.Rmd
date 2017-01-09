@@ -1,0 +1,193 @@
+---
+title: "Installations of packages and software"
+output:
+  html_document: default
+  df_print: paged
+  html_notebook: default
+---
+### Installation of RStudio
+Download and install RStudio from the following link (if you already have RStudio, update to the latest version):
+<https://www.rstudio.com/products/RStudio/#Desktop>
+
+### Installation of R packages
+If asked to update packages (Update all/some/none [a/s/n]) - update all packages (answer a).
+
+-  Bioconductor
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite()
+```
+
+The following are Bioconductor packages:
+
+- CAGEr
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("CAGEr")
+```
+
+-  DEseq2
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("DESeq2")
+```
+
+-  IRanges
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("IRanges")
+```
+
+-  GenomicRanges
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("GenomicRanges")
+```
+
+-  GenomicFeatures
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("GenomicFeatures")
+```
+
+-  AnnotationDbi
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("AnnotationDbi")
+```
+
+-  BSgenome
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("BSgenome")
+```
+
+-  BSgenome.Drerio.UCSC.danRer7
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("BSgenome.Drerio.UCSC.danRer7")
+```
+
+-  ZebrafishDevelopmentalCAGE  
+    You will need the Zebrafish CAGE developmental stages, which can be downloaded from:  
+    <http://promshift.genereg.net/CAGEr/PackageSource/>
+
+      Download and extract *ZebrafishDevelopmentalCAGE_0.99.0.tar.gz* into your working directory.  
+      To install the package use the following code within R:
+      
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("ZebrafishDevelopmentalCAGE", repos = NULL, type="source")
+```
+  Or use the following code to install straight from the website from R:
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("http://promshift.genereg.net/CAGEr/PackageSource/ZebrafishDevelopmentalCAGE_0.99.0.tar.gz", repos = NULL) 
+```
+
+- SeqPattern
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("Seqpattern")
+```
+
+- EBImage
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+biocLite("EBImage")
+```
+
+- Genomation
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("genomation")
+```
+
+- EdgeR
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("edgeR")
+```
+
+- Rtracklayer
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+source("https://bioconductor.org/biocLite.R")
+biocLite("rtracklayer")
+```
+
+
+The following are R CRAN packages, also install within R:
+
+-  RColorBrewer
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("RColorBrewer", repos="http://cran.rstudio.com/")
+```
+
+-  pheatmap
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("pheatmap", repos="http://cran.rstudio.com/")
+```
+
+- Devtools
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("devtools")
+```
+  
+- Dplyr 
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install.packages("dplyr")
+```
+
+Install a package from github within R:
+```{r, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+install_github("mgperry/heatmaps")
+```
+
+
+### Software
+The following software should be installed from the terminal/command line:
+
+First install homebrew - the package manager for macOS by pasting the following at the Terminal prompt:  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+```
+
+For mapping and read processing, we will install several programs using Homebrew as the package manager by typing the following at the Terminal prompt:  
+  
+-  java (necessary for fastqc)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew cask install java
+```
+
+-  fastqc (for read quality control)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install fastqc
+```
+  
+-  bowtie2 (for mapping)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install bowtie2
+```
+  
+-  samtools (for manipulating .bam and .sam files)
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install samtools
+```
+
+-  bedtools (for manipulating .bam, .bed etc. types of files)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install bedtools
+```
+  
+-  seqtk (if you want to subset .fastq file reads as described in preparing reads for this course)  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+brew install seqtk
+```
+Homebrew has an excellent science selection and all the programs available for installation can be found at:  
+<https://github.com/Homebrew/homebrew-science>  
+To install a program use the following syntax:  
+brew install *program_name without .rb extension*  
+  
+-  cutadapt (for trimming reads in .fastq format)
+    To install software for trimming reads in .fastq format, we will use Python's package manager PIP by typing the following at the Terminal prompt:  
+```{bash, message=FALSE, warning=FALSE, eval=FALSE, include=TRUE}
+pip install cutadapt
+```
+

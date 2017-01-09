@@ -1,0 +1,7 @@
+chr	start	end	strand	gc_perc
+chr1	0	16	-	0.78
+chr2	28	35	-	0.54
+chr2	12	22	+	0.34
+chr3	7	14	+	0.23
+chr3	5	15	-	0.66
+chr7	7	23	+	0.65

@@ -266,7 +266,7 @@ require(ggplot2)
 tab <- data.frame(table(tc.gfeat$zf_512cells$feat_single))
 tab$perc <- (tab$Freq/sum(tab$Freq))*100
 tab$Var1 = factor(x = tab$Var1, levels = c("upstream","promoter","exon","intron","gene","intergenic"))
-  
+
 ggplot(data = tab, aes(x = Var1, y = perc, alpha = Var1)) + 
   geom_bar(stat = "identity", position = position_dodge(),fill = "forestgreen") + 
   xlab("Gene Feature") + ylab("TC") + ggtitle("Genomic Features") + 
@@ -488,7 +488,7 @@ SmoothPatternHM = function(seq, pattern, ...) {
     smooth(hm, output.size=c(500, 1000),sigma=c(10,5))
 }
 
-
+fa = zfseq[sample(length(zfseq))]
 coords = c(-400,400) # coordinates window
 
 hm_list = list(
@@ -510,7 +510,7 @@ upperOpts = heatmapOptions(
 lowerOpts = heatmapOptions(
     cex.axis=1.5 )
 
-par(mfrow=c(1,2))
+par(mfrow=c(1,4))
 plotHeatmap(hm_list$ta, options=upperOpts)
 plotHeatmap(hm_list$cg, options=upperOpts)
 plotHeatmap(hm_list$ww, options=lowerOpts)

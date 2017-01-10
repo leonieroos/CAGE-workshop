@@ -1,6 +1,6 @@
 CAGE Data Analysis with CAGEr
 ========================================================
-css: Rpress.css
+css: style/Rpress.css
 author: Leonie Roos and Nevena Cvetesic
 date: 11. 01. 2017.
 autosize: true
@@ -9,7 +9,7 @@ height: 1100
 css: stylesheet.css
 font-import: <link href='http://fonts.googleapis.com/css?family=Slabo+27px' rel='stylesheet' type='text/css'>
 font-family: 'Slabo 27px', serif;
-css:style.css
+css: style/style.css
 
 Overview
 ========================================================
@@ -297,12 +297,15 @@ This is to exclude small outliers that can influence the width substantially.
 <br>
 __From this we can determine "sharp" and "broad" promoters!__
 
+![](images/PromoterWidth.png)
+
+Haberle V, _et al_. CAGEr: precise TSS data retrieval and high-resolution promoterome mining for integrative analyses. Nucl Acids Res 2015;43(8):e51.  
 
 Promoter shifting Determination
 ========================================================
 The method from Haberle _et al_ has been implemented in _CAGEr_. 
 
-- Shifting is detected using cumulative distribution per sample of cange signal
+- Shifting is detected using cumulative distribution per sample of CAGE signal
 
 - A shifting score is determined by the difference in cumulative distributions
 
@@ -310,35 +313,72 @@ The method from Haberle _et al_ has been implemented in _CAGEr_.
 
 ![](images/shiftingScore.png)
 
+Haberle V, _et al_. CAGEr: precise TSS data retrieval and high-resolution promoterome mining for integrative analyses. Nucl Acids Res 2015;43(8):e51.  
 
-Expression - Self organising maps
+
+Expression - Self organising maps (SOM)
 ========================================================
-CAGE signals are essentially measuring transcription starting from CTSS and thus the transcription levels can be assessed. This can be done per CTSSs, TCs, or consensus clusters. <br>
-_CAGEr_ offers two methods to cluster gene expression to identify gene expression patterns:
+<br>
+__Relative usage frequency of CTSSs__
+<br>
+Transcription levels of CTSSs can be assessed. 
+
+- per CTSSs
+- TCs
+- Consensus clusters. <br>
+
+_CAGEr_ offers __two methods__ to cluster gene expression to identify __gene expression patterns__:
 
 - k-means clustering
 - self-organising maps (SOM)
 
 Both require the number of expression clusters to be known _a priori_. <br>
-Here we will perform the SOM algorithm at consensus cluster level for our two samples to identify expression patterns. We set the threshold to at least 10 tpm (normalized) in at least one sample to make sure we have robustly expressed TCs within the consensus clusters. <br>
-The function is `getExpressionProfiles()` and in here we define that we expect in this case 6 clusters (`xDim = 3, yDim = 2`).
 
 
 
+Expression - Self organising maps (SOM)
+========================================================
+What does this look like? <br>
+Seen over 12 samples over time with 5 by 5 dimensions.
+
+![](images/haberle2014_SOM.png)
+
+Haberle V, _et al_. Two independent transcription initiation codes overlap on vertebrate core promoters. Nat 2014;507(7492):381-385. 
 
 
+Tutorial
+========================================================
+type: section
+<br>
+The tutorial that is linked with this presentation:
+<br>
+
+__Tutorials dir__ 
+
+CAGE-workshop-Tutorial-P1-CAGErAnalysis
+
+<br>
+<br>
+This will guide you through all the _CAGEr_ functions and analyses that you can include in your downstream analysis pipeline!
 
 
+References Publicly Available Data releases
+========================================================
+<br>
 
+__FANTOM 5__ Release <br>
+Consortium, T. F. (2014) A promoter-level mammalian expression atlas. Nature, 507(7493):462-470. doi:10.1038/nature13182. 
 
+__FANTOM 3 and 4__ Releases <br>
+Consortium, T. F. (2005). The Transcriptional Landscape of the Mammalian Genome. Science, 309(5740):1559-1563.<br>
 
+Faulkner, G. J., et al. (2009). The regulated retrotransposon transcriptome of mammalian cells. Nature Genetics, 41(5):563-571.<br>
 
+Suzuki, et al. (2009). The transcriptional network that controls growth arrest and differentiation in a human myeloid leukemia cell line. Nature Genetics, 41(5):553-562. <br>
 
+__ENCODE__ Release <br>
+Djebali, S., et al. (2012). Landscape of transcription in human cells. Nature, 488(7414):101-108.
 
-
-
-
-```
-Error in getExpressionProfiles(myCAGEset, what = "consensusClusters",  : 
-  object 'myCAGEset' not found
-```
+__Zebrafish Developmental timecourse__<br>
+Nepal, C., et al. (2013). Dynamic regulation of coding and non-coding transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research, 23(11):1938-1950. 
+    

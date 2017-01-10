@@ -1,6 +1,6 @@
 CAGE Data Analysis with CAGEr
 ========================================================
-css: Rpress.css
+css: style/Rpress.css
 author: Leonie Roos and Nevena Cvetesic
 date: 11. 01. 2017.
 autosize: true
@@ -9,7 +9,7 @@ height: 1100
 css: stylesheet.css
 font-import: <link href='http://fonts.googleapis.com/css?family=Slabo+27px' rel='stylesheet' type='text/css'>
 font-family: 'Slabo 27px', serif;
-css:style.css
+css: style/style.css
 
 Overview
 ========================================================
@@ -274,12 +274,15 @@ This is to exclude small outliers that can influence the width substantially.
 <br>
 __From this we can determine "sharp" and "broad" promoters!__
 
+![](images/PromoterWidth.png)
+
+Haberle V, _et al_. CAGEr: precise TSS data retrieval and high-resolution promoterome mining for integrative analyses. Nucl Acids Res 2015;43(8):e51.  
 
 Promoter shifting Determination
 ========================================================
 The method from Haberle _et al_ has been implemented in _CAGEr_. 
 
-- Shifting is detected using cumulative distribution per sample of cange signal
+- Shifting is detected using cumulative distribution per sample of CAGE signal
 
 - A shifting score is determined by the difference in cumulative distributions
 
@@ -287,116 +290,72 @@ The method from Haberle _et al_ has been implemented in _CAGEr_.
 
 ![](images/shiftingScore.png)
 
+Haberle V, _et al_. CAGEr: precise TSS data retrieval and high-resolution promoterome mining for integrative analyses. Nucl Acids Res 2015;43(8):e51.  
 
-Expression - Self organising maps
+
+Expression - Self organising maps (SOM)
 ========================================================
-CAGE signals are essentially measuring transcription starting from CTSS and thus the transcription levels can be assessed. This can be done per CTSSs, TCs, or consensus clusters. <br>
-_CAGEr_ offers two methods to cluster gene expression to identify gene expression patterns:
+<br>
+__Relative usage frequency of CTSSs__
+<br>
+Transcription levels of CTSSs can be assessed. 
+
+- per CTSSs
+- TCs
+- Consensus clusters. <br>
+
+_CAGEr_ offers __two methods__ to cluster gene expression to identify __gene expression patterns__:
 
 - k-means clustering
 - self-organising maps (SOM)
 
 Both require the number of expression clusters to be known _a priori_. <br>
-Here we will perform the SOM algorithm at consensus cluster level for our two samples to identify expression patterns. We set the threshold to at least 10 tpm (normalized) in at least one sample to make sure we have robustly expressed TCs within the consensus clusters. <br>
-The function is `getExpressionProfiles()` and in here we define that we expect in this case 6 clusters (`xDim = 3, yDim = 2`).
-
-```{r}
-getExpressionProfiles(myCAGEset, 
-                      what = "consensusClusters", 
-                      tpmThreshold = 10,
-                      nrPassThreshold = 1, 
-                      method = "som", 
-                      xDim = 3, 
-                      yDim = 2)
-```
-What happens if you change the tpmThreshold? Or change the xDim and yDim?
-
-<br><br>
-These results can be plotted:
-```{r}
-plotExpressionProfiles(myCAGEset, what = "consensusClusters")
-```
-![SOM](../images/expression_profiles.png)
-
-Subsequently, a character vector of the expression classes can be extracted from the cageset. This will be the same order as the consensus clusters.
-```{r}
-expr.clus = expressionClasses(myCAGEset, what = "consensusClusters")
-```
-
-<br>
-
-### Promoter shifting
-Promoter shifting is described by Haberle _et al_, 2014. They've shown that the same promoter can be used differently in samples at different times in development. The method from this paper has been implemented in _CAGEr_. Shifting can be detected between two individual samples. If there are more than two samples, they can be merged per group (if possible) and the two groups are then compared. 
-<br>
-<br>
-The shifting uses, similary to determining promoter width, the cumulative distribution per sample of CAGE signal (here: within the consensus clusters). The difference between the cumulative distributions is calculated as a _shifting score_ (see figure below). Additionally, a Kolmogorov-Smirnov test on the cumulative distributions is performed to give a general assessment of differential TSS usage.
-
-<img src="../images/shiftingScore.png" width="550">
-<br>
- 
-We will start by determing the cumulative distributions along all consensus clusters:
-
-```{r, message = FALSE}
-cumulativeCTSSdistribution(myCAGEset, clusters = "consensusClusters")
-```
-
-Determine the shifting score with `scoreShift()`. The variables include our myCAGEset, as well as the sample labels of the samples we want to compare (`groupX, groupY`), and use the normalized tag counts by `useTpmKS = TRUE`.
-```{r, message = FALSE}
-samples
-scoreShift(myCAGEset, 
-           groupX = samples[4], 
-           groupY = samples[11], 
-           testKS = TRUE, 
-           useTpmKS = TRUE)
-```
-
-__Positive values__ are interpreted as the proportion of transcription initiation in the sample with lower expression that is happening "outside" (either upstream or downstream) of the region used for transcription initiation in the other sample.
-Whereas __negative values__ indicate no physical separation, the region used for transcription initiation in the sample with lower expression is completely contained within the region of other sample.
-<br> <br>
-
-The two sample Kolmogorov-Smirnov (K-S) test determines if the two probability distributions are different. The cumulative sums in both samples are scaled to range
-between 0 and 1. In our example by setting _testKS = TRUE_, the normalized tpm values were used (if FALSE, raw tag counts are used). The p-values are already corrected for multiple testing (Benjamini and Hochenberg) and a false discovery rate (FDR) is determined for each p-value. 
-<br> <br>
-
-These values are all again stored in our object. The retrieve only the shifting promoters as a dataframe we can set a few tresholds:
-
-  - `tpmThreshold`
-  - `scoreThreshold` (shifting score)
-  - `fdrThreshold`
-  
-Here we will set the threshold of shifting score at 0.6 like the original paper as well as setting the FDR at 0.01:
-```{r}
-shifting.promoters <- getShiftingPromoters(myCAGEset, 
-                                           tpmThreshold = 5, 
-                                           scoreThreshold = 0.6, 
-                                           fdrThreshold = 0.01)
-```
-What is stored in this dataframe?
-```{r}
-head(shifting.promoters)
-```
-
-This returns genomic coordinates (of conensusclusters), shifting score, adjusted p-value, and FDR p-value of the consensus clusters as well as the value of CAGE signal and position
-of the dominant TSS in the two compared (groups of) samples.
 
 
 
-References
+Expression - Self organising maps (SOM)
 ========================================================
-_FANTOM 5_ Release
+What does this look like? <br>
+Seen over 12 samples over time with 5 by 5 dimensions.
+
+![](images/haberle2014_SOM.png)
+
+Haberle V, _et al_. Two independent transcription initiation codes overlap on vertebrate core promoters. Nat 2014;507(7492):381-385. 
+
+
+Tutorial
+========================================================
+type: section
+<br>
+The tutorial that is linked with this presentation:
+<br>
+
+__Tutorials dir__ 
+
+CAGE-workshop-Tutorial-P1-CAGErAnalysis
+
+<br>
+<br>
+This will guide you through all the _CAGEr_ functions and analyses that you can include in your downstream analysis pipeline!
+
+
+References Publicly Available Data releases
+========================================================
+<br>
+
+__FANTOM 5__ Release <br>
 Consortium, T. F. (2014) A promoter-level mammalian expression atlas. Nature, 507(7493):462-470. doi:10.1038/nature13182. 
 
-_FANTOM 3 and 4_ Releases
-Consortium, T. F. (2005). The Transcriptional Landscape of the Mammalian Genome.
-Science, 309(5740):1559-1563.
+__FANTOM 3 and 4__ Releases <br>
+Consortium, T. F. (2005). The Transcriptional Landscape of the Mammalian Genome. Science, 309(5740):1559-1563.<br>
 
-Faulkner, G. J., et al. (2009). The regulated retrotransposon transcriptome of mammalian cells. Nature Genetics, 41(5):563-571.
+Faulkner, G. J., et al. (2009). The regulated retrotransposon transcriptome of mammalian cells. Nature Genetics, 41(5):563-571.<br>
 
-Suzuki, et al. (2009). The transcriptional network that controls growth arrest and differentiation in a human myeloid leukemia cell line. Nature Genetics, 41(5):553-562. 
+Suzuki, et al. (2009). The transcriptional network that controls growth arrest and differentiation in a human myeloid leukemia cell line. Nature Genetics, 41(5):553-562. <br>
 
-_ENCODE_ Release
+__ENCODE__ Release <br>
 Djebali, S., et al. (2012). Landscape of transcription in human cells. Nature, 488(7414):101-108.
 
-_Zebrafish Developmental timecourse_
+__Zebrafish Developmental timecourse__<br>
 Nepal, C., et al. (2013). Dynamic regulation of coding and non-coding transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research, 23(11):1938-1950. 
     

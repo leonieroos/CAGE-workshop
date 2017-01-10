@@ -4,20 +4,26 @@ css: Rpress.css
 author: Leonie Roos and Nevena Cvetesic
 date: 11. 01. 2017.
 autosize: true
-width: 1440
-height: 1100
-css: stylesheet.css
+width: 1640
+height: 1200
+css: Rpress.css
 font-import: <link href='http://fonts.googleapis.com/css?family=Slabo+27px' rel='stylesheet' type='text/css'>
 font-family: 'Slabo 27px', serif;
-css:style.css
+css: style.css
+
+Overview
+========================================================
+type: section
 
 Overview
 ========================================================
 - IRanges
 - Genomic Ranges
 
+IRanges 
+========================================================
+type: section
 
-  
 IRanges
 ========================================================
 - before learning to manipulate CAGE data, we will repeat some very important data structures and packages necessary for manipulation of genomic data
@@ -43,6 +49,8 @@ rng <- IRanges(start=c(2,3,7,15), end=c(15, 25, 46, 78))
 rng
 ```
 
+IRanges
+========================================================
 - in addition, like other objects, ranges can be named:  
 ```{r}
 names(rng) <- letters[1:4]
@@ -71,8 +79,12 @@ IRanges
 rng <- IRanges(start=c(1,5,10), width=c(3,5,9))
 rng
 rng[2:3]
+```
 
-# we can create an index for subsetting
+IRanges
+========================================================
+- we can create an index for subsetting
+```{r}
 index <- start(rng) <=5
 rng[index]
 ```
@@ -94,6 +106,9 @@ rng
 flank(rng, width = 2)
 ```
 - **flank** returns the regions that are on the side of each range in the IRanges object with the specified width, and by default it operates to create a range with 'width' position upstream of each start position
+
+IRanges
+========================================================
 - to *flank* the regions downstream, set *start = false*:  
 ```{r}
 flank(rng, width = 2, start = FALSE)
@@ -135,6 +150,12 @@ rng2 <- IRanges(start = 13, end = 19)
   
 union(rng1, rng2)
 intersect(rng1, rng2)
+```
+
+IRanges
+========================================================
+- note that in some cases, the order of IRanges objects matters.  
+```{r}
 setdiff(rng1, rng2)
 setdiff(rng2, rng1)
 ```
@@ -160,7 +181,10 @@ hits
 
 - hits object represents a mapping between query and subject - which query ranges overlap wich subject range/ranges
 - first column represents the index of the query object, while the second the index of the subject
-- this can be used to subset ovelapping ranges:  
+
+IRanges
+========================================================
+- hits object can be used to subset ovelapping ranges:  
 ```{r}
 query[queryHits(hits)]
 subject[subjectHits(hits)]
@@ -173,6 +197,8 @@ IRanges
 subsetByOverlaps(query, subject)
 ```
 
+IRanges
+========================================================
 - what is the difference between using *subsetByOverlaps* and the following:  
 ```{r}
 query[queryHits(hits)]
@@ -189,7 +215,6 @@ IRanges
 hits_within <- findOverlaps(query, subject, type = "within")
 hits_within
 query[queryHits(hits_within)]
-subject[subjectHits(hits_within)]
 ```
 
 IRanges
@@ -219,10 +244,19 @@ IRanges
 query
 subject
 distanceToNearest(query, subject)
+```
+
+IRanges
+========================================================
+```{r}
 distance(query, subject)
 ```
 - we can see that **distanceToNearest** works similarly as **findOverlaps** - it returns a mapping hits object and an additional column containing calculated distances 
 - distances returns pairwise calculated distances between each query and subject ranges
+
+Genomic Ranges - GRanges
+========================================================
+type: section
 
 Genomic Ranges - GRanges
 ========================================================
@@ -242,9 +276,12 @@ Genomic Ranges - GRanges
 - very useful way to create a GRanges object is from a dataframe
 - first we will read data from a file *ranges.txt* into a dataframe and then create a GRanges object
 ```{r}
-rng <- read.table(file = "Solutions/ranges.txt", sep = "\t", header = TRUE)
+rng <- read.table(file = "../Tutorials/ranges.txt", sep = "\t", header = TRUE)
 rng
 ```
+
+Genomic Ranges - GRanges
+========================================================
 - we can specify everything manually
 ```{r}
 rng.gr <- GRanges(seqnames = rng$chr,
@@ -253,6 +290,7 @@ rng.gr <- GRanges(seqnames = rng$chr,
                   gc_perc = rng$gc_perc)
 rng.gr
 ```
+
 Genomic Ranges - GRanges
 ========================================================
 - there is also an option to convert the dataframe into a GRanges object directly using makeGRangesFromDataFrame
@@ -287,6 +325,9 @@ length(rng.gr)
 names(rng.gr) <- letters[1:6]
 rng.gr
 ```
+
+Genomic Ranges - GRanges
+========================================================
 - to access metadata use:  
 ```{r}
 mcols(rng.gr)
@@ -297,9 +338,20 @@ Genomic Ranges - GRanges
 - important function that will be often used with genomics data is coverage  
 - coverage calculates how many individual positions are overlapped with the ranges within the .gr object. Lets see how it works:    
 ```{r}
+# first check you .gr object
 rng.gr
+```
+
+Genomic Ranges - GRanges
+========================================================
+```{r}
 coverage(rng.gr)
 ```
+
+Genomic Ranges - GRangesList
+========================================================
+type: sub-section
+
 
 Genomic Ranges - GRangesList
 ========================================================
@@ -310,11 +362,17 @@ gr1 <- GRanges(seqname = c("chr1", "chr2", "chr2"),
                ranges = IRanges(start = 2:4, width = 10),
                strand = c("+", "+", "-"))
 gr1
+```
+
+Genomic Ranges - GRangesList
+========================================================
+```{r}
 gr2 <- GRanges(seqname = c("chr2", "chr2", "chr3", "chr1"), 
                ranges = IRanges(start = 6:9, width = 12),
                strand = c("+", "+", "-","+"))
 gr2
 ```
+
 Genomic Ranges - GRangesList
 ========================================================
 ```{r}
@@ -343,8 +401,13 @@ Genomic Ranges - GRangesList
 - these functions enable us to iterate through all the elements of a list and apply a function to each element
 - they work with R's regular lists, and also with GRangesLists. Lets test how it works:  
 ```{r}
+# first check your GRangesList object
 grl
+```
 
+Genomic Ranges - GRangesList
+========================================================
+```{r}
 # extract start positions for each GRangesList element using lapply
 lapply(grl, function(x) start(x))
 ```
@@ -364,33 +427,52 @@ sapply(grl, length)
 
 Genomic Ranges - Exercise
 ========================================================
+type: prompt
+
+Genomic Ranges - Exercise
+========================================================
   1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.
   2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).
   3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).
 
 Genomic Ranges - Solutions
 ========================================================
-  1. Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.  
+type: sub-section
+
+Genomic Ranges - Solutions
+========================================================
+
+1) Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.  
   
 ```{r}
-genes.df <- read.table("Solutions/danRer7genes.txt", header = TRUE) # read the data from a file into a dataframe
+# read the data from a file into a dataframe
+genes.df <- read.table("../Tutorials/danRer7genes.txt", header = TRUE) 
 head(genes.df)
-genes.gr <- makeGRangesFromDataFrame(genes.df, keep.extra.columns = TRUE) # create a GRanges object from a dataframe
+```  
+
+Genomic Ranges - Solutions
+========================================================
+1) Import *Danio rerio* gene coordinates from *danRer7genes.txt* file and create a GRanges object.  
+  
+```{r}
+# create a GRanges object from a dataframe
+genes.gr <- makeGRangesFromDataFrame(genes.df, keep.extra.columns = TRUE) 
 head(genes.gr)
 ```
 
 Genomic Ranges - Solutions
 ========================================================
-  2. Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).  
+2) Create a GRangesList object with genes split according to chromosome name (each list element contains all genes located on the corresponding chromosome).  
  
 ```{r}
 genes.grl <- split(genes.gr, seqnames(genes.gr)) 
+genes.grl
 ```
 
 Genomic Ranges - Solutions
 ========================================================
-  3. Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).  
+3) Create a new GRanges object containing promoters of genes located on chromosome 11 (see *promoters* function).  
 ```{r}
 promoters.gr <- promoters(genes.grl[["chr11"]], upstream = 2000, downstream = 500, strand = TRUE)
-head(promoter.gr)
+head(promoters.gr)
 ```  

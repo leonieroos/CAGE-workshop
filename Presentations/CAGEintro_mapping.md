@@ -13,6 +13,10 @@ css:style.css
 
 Overview
 ========================================================
+type: section 
+
+Overview
+========================================================
 - CAGE - recap of experimental methods
 - Quality control
 - Data pre-processing  
@@ -22,15 +26,30 @@ Overview
 
 CAGE - recap of experimental methods
 ========================================================
+type: section 
+
+CAGE - recap of experimental methods
+========================================================
+- latest CAGE method
+![Types of CAGE](images/nantiCAGE.png)
+
+CAGE - recap of experimental methods
+========================================================
 - different experimental types produce different data
-![Types of CAGE](Images/CAGEtypes2.png)
+![Types of CAGE](images/CAGEtypes2.png)
+
+
+Quality control
+========================================================
+type: section 
 
 Quality control
 ========================================================
 - we will work with tagging CAGE data and map reads from *Danio rerio* 30 % epiboly stage, chromosome 11
 - lets set our working directory to the folder Mapping
 -  first we will check the quality of the data using **FASTQC**:
-```{bash, eval = FALSE, include = TRUE}
+
+```bash
 #type the following in the command line
 
 fastqc 30epi_chr11.fastq.gz
@@ -51,11 +70,16 @@ Why is that?
 
 Data pre-processing  
 ========================================================
+type: section 
+
+Data pre-processing  
+========================================================
 - all manipulations will be done within the Terminal.
 
 - lets check the begginning of our reads *.fastq.gz* file.  
 
-```{bash, eval = FALSE, include=TRUE}
+
+```bash
 gzcat 30epi_chr11.fastq.gz | head
 ```
 
@@ -79,19 +103,25 @@ Data pre-processing
 __cutadapt__  
 Lets first see how to run it:
 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 cutadapt
 ```
 
 - we can either specify the exact sequence, or specify the number of nucleotides to remove.
 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 cutadapt -u +6 -u -14 -o 30epi_chr11_trimmed.fastq.gz 30epi_chr11.fastq.gz
 ```
 
 - we can even specify trimming within *bowtie2* prior to mapping (see later..)
 
 Check how the reads look now!
+
+Mapping
+========================================================
+type: section
 
 Mapping
 ========================================================
@@ -108,15 +138,18 @@ Mapping
 ========================================================
 - first we need to build the index for our reference genome/chromosome 11. Why?  
 Lets first see how to use the **bowtie2-build** tool:
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 bowtie2-build
 ```
 - the syntax for using **bowtie2-build** is to specify the genome.fasta file and the output basename
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 bowtie2-build danRer10chr11.fa danRer10chr11
 ```
 - lets check what we created in our folder:
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 ls
 ```
 - 6 files with our specified basename *danRer10chr11[1-4].bt2* appeared 
@@ -125,27 +158,31 @@ ls
 Mapping
 ========================================================
 - lets first check how to use *bowtie2*: 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 bowtie2
 ```
 
 - to start the mapping, use the following:
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 bowtie2 -x danRer10chr11 -U 30epi_chr11_trimmed.fastq.gz -S 30epi_chr11_trimmed.sam
 ```
 
 - alternatively, we can set trimming within *bowtie2* and skip trimming using *cutadapt*:  
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 bowtie2 -5 6 -3 14 -x danRer10chr11 -U 30epi_chr11.fastq.gz -S 30epi_chr11.sam
 ```
 - the standard text format for storing sequence data in a human readable format is the SAM format. Lets see how it looks:   
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 head 30epi_chr11.sam
 ```
 
 Mapping
 ========================================================
-We can see that the alignment contains:  
+We can see that the alignment SAM format contains:  
    - query name, QNAME  
    - FLAG - bitwise set of information describing the alignment  
    - reference sequence name (RNAME), i.e. the chromosome name  
@@ -156,15 +193,21 @@ We can see that the alignment contains:
    - leftmost position of the next alignement in the group  
    - length of this group from the leftmost position to the rightmost position  
    - query quality for this alignment (QUAL), one for each base in the alignment  
-   - TAGs - additional optional information that can be used for filtering  
+   - TAGs - additional optional information that can be used for filtering
+     
+More information about SAM format can be found on: <http://genome.sph.umich.edu/wiki/SAM>
 
+Processing of the mapped file
+========================================================
+type: section
 
 Processing of the mapped file
 ========================================================
 - more common representation that is used for futher processing is the compressed binary version of the SAM format, called BAM format    
 - we can convert our SAM file to a BAM file using **samtools**  
   
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools view -S -b -q 10 -o 30epi_chr11.bam 30epi_chr11.sam
 ```
   
@@ -177,13 +220,15 @@ Processing of the mapped file
 ANSWER  
 - each row in the *.SAM* file is one mapped read, so we can just count the rows, and compare it to the number of rows in the filtered *.BAM* output:  
 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 wc -l 30epi_chr11.sam
 ```
   
 - to check the number of lines in the *.BAM* output, we need to use *samtools*:  
   
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools view 30epi_chr11.bam | wc -l
 ```
 
@@ -196,7 +241,8 @@ Processing of the mapped file
 - we are working with only one chromosome and there is no need for sorting 
 - in the future you will be working with whole genomes, and to access the data and run some programs as quickly as possible, sort the mapped reads  
 - we can do this using **samtools**:  
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools sort -l 9 -T 30epi_chr11.tmp -o 30epi_chr11.sorted.bam 30epi_chr11.bam
 ```
 - note that we specified the name of the output *.tmp* file and used the maximum compression level with ' -l 9'  
@@ -206,7 +252,8 @@ Processing of the mapped file
 ========================================================
 **Sorting**
 - lets check if sorting worked:    
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools view 30epi_chr11.bam | head
 samtools view 30epi_chr11.sorted.bam | head
 ```
@@ -218,13 +265,18 @@ Processing of the mapped file
 **Indexing**  
 - now we will index the *.bam* files for faster access.
 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools index 30epi_chr11.sorted.bam
 ```
 
 - this created an additional binary file: 30epi_chr11.sorted.bam.bai
 
 We are ready to to import this *.bam* file into CAGEr for analysis.
+
+Visualisation of raw mapped reads
+========================================================
+type: section
 
 Visualisation of raw mapped reads
 ========================================================
@@ -240,7 +292,8 @@ Visualisation of raw mapped reads
 Inspect some reads in the *30epi_chr11.sorted.bam* file and find the reads using the leftmost position. 
 
 ANSWER: 
-```{bash, eval=FALSE, include=TRUE}
+
+```bash
 samtools view 30epi_chr11.sorted.bam | head
 ```
 

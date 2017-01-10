@@ -510,7 +510,7 @@ upperOpts = heatmapOptions(
 lowerOpts = heatmapOptions(
     cex.axis=1.5 )
 
-par(mfrow=c(1,4))
+par(mfrow=c(1,2))
 plotHeatmap(hm_list$ta, options=upperOpts)
 plotHeatmap(hm_list$cg, options=upperOpts)
 plotHeatmap(hm_list$ww, options=lowerOpts)

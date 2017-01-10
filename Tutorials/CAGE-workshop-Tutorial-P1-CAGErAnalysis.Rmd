@@ -117,7 +117,7 @@ How similar are the two samples? _CAGEr_ has a function to look at the correlati
 ```{r, message=FALSE}
 plotCorrelation(myCAGEset, samples = "all", method = "pearson") 
 ```
-<img src="../images/CTSS_raw_values_pairwise_correlation.png" width="350">
+<img src="images/CTSS_raw_values_pairwise_correlation.png" width="350">
 <br>
 <br>
 To access the correlations displayed in the terminal, just assign the function to `corr.m` to keep a matrix of correlations:
@@ -185,7 +185,7 @@ Have a look again at the myCAGEset! The Tag cluster information slot has now bee
 
 ### Promoter width
 Another feature we can determine with _CAGEr_ is the promoter width. That is in this case, the width of each tag cluster per sample. _CAGEr_ has a function that calculates the TC width based on the cumulative distribution of tag signal per TC. See the figure below.
-![cumulative promoter](../images/PromoterWidth.png)
+![cumulative promoter](images/PromoterWidth.png)
 <br>
 
 Generally, the width of a TC (promoter) is set between the quantiles 0.1 and 0.9 to capture 80% of CTSS within the TC. To determine the width we follow these two steps:
@@ -257,7 +257,7 @@ These results can be plotted:
 ```{r}
 plotExpressionProfiles(myCAGEset, what = "consensusClusters")
 ```
-![SOM](../images/expression_profiles.png)
+![SOM](images/expression_profiles.png)
 
 Subsequently, a character vector of the expression classes can be extracted from the cageset. This will be the same order as the consensus clusters.
 ```{r}
@@ -283,7 +283,6 @@ cumulativeCTSSdistribution(myCAGEset, clusters = "consensusClusters")
 
 Determine the shifting score with `scoreShift()`. The variables include our myCAGEset, as well as the sample labels of the samples we want to compare (`groupX, groupY`), and use the normalized tag counts by `useTpmKS = TRUE`.
 ```{r, message = FALSE}
-samples
 scoreShift(myCAGEset, 
            groupX = samples[4], 
            groupY = samples[11], 

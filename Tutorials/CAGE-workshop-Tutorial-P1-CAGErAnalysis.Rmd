@@ -344,7 +344,7 @@ Haberle V, Forrest ARR, Hayashizaki Y, Carninci P, Lenhard B. CAGEr: precise TSS
 Nepal C, Hadzhiev Y, Previti C, et al. Dynamic regulation of the transcription initiation landscape at single nucleotide resolution during vertebrate embryogenesis. Genome Research. 2013;23(11):1938-1950. doi:10.1101/gr.153692.112.
 
 # Session Info
-```{r, echo=FALSE}
+```{r, echo=FALSE, error=FALSE, warning=FALSE}
 sessionInfo()
 ```
 
